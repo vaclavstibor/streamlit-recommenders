@@ -1,9 +1,44 @@
-# streamlit_recommenders
+# Streamlit Recommenders
 
 Lightweight Python library for **interactive demo and evaluation of recommender systems** in Streamlit. Target users: **researchers and mathematicians** who **write their own Python code** — load data, implement scoring, run a demo. The library saves Streamlit boilerplate, not the math.
 
-| **[Capabilities (API + demos)](docs/CAPABILITIES.md)** | **[Interfaces & contracts](docs/CONTRACTS.md)** | Showcase: `.venv/bin/streamlit run examples/showcase_demo.py` |
-|--------------------------------------------------------|-------------------------------------------------|-------------------------------------------------|
+| **[Capabilities (API + demos)](docs/CAPABILITIES.md)** | **[Interfaces & contracts](docs/CONTRACTS.md)** |
+|--------------------------------------------------------|-------------------------------------------------|
+
+## Project goal
+
+Let a researcher write **one `.py` file** (or a small module) where they:
+
+1. **Load data and weights** — `pd.read_csv`, `np.load`, `torch.load`, paths on disk.
+2. **Implement recommendation logic** — plain Python: numpy, custom classes, existing notebook code.
+3. **Call the library** — layout, widgets, charts, markdown; the rest runs automatically.
+
+This is not a training framework or production serving. It is a **thin presentation layer** — the researcher writes the model, the library writes Streamlit.
+
+## What the researcher writes vs. what the library handles
+
+| Researcher writes (public API) | Library handles internally (hidden) |
+|--------------------------------|-------------------------------------|
+| Load data and weights from disk | `@st.cache_data` / `@st.cache_resource` for data and models |
+| Function or class `recommend(user_id, k, **params)` | Adapter + cache invalidation on param change |
+| Calls `sr.rows(...)`, `sr.plot(...)`, `sr.markdown(...)` | Layout, rerun logic |
+| Params via `sr.slider(...)` or YAML | Widget -> `**params`, `st.session_state` |
+| Optional custom section in `demo.py` | Session storage, click history, rerun state |
+
+**Principle:** The demo script should read like **a notebook converted to `.py`** — clear, no Streamlit magic. All `st.cache_*`, `session_state`, fragments, and rerun optimizations belong **in the library**, not in the researcher's demo file.
+
+## Target users and UX principles
+
+| Principle | Meaning |
+|-----------|---------|
+| **Code-first** | Main path = Python script, not UI file upload |
+| **Ready to use** | `pip install` + ~30 lines of clear code -> running demo |
+| **Zero Streamlit boilerplate** | Researcher does not import `streamlit`, does not manage cache/state/rerun |
+| **Convention over configuration** | Sensible defaults; YAML only for repeated param blocks |
+| **Easily extensible** | New layout = one function; new model = one function with a fixed signature |
+| **Simplicity first** | Minimum abstractions outward; complexity only inside the library where needed (see `.cursor/skills/SKILL.md`) |
+
+## Requirements
 
 ```bash
 # Use run_demo.sh script to run the showcase demo
@@ -21,47 +56,6 @@ pip install -e .
 # Run showcase demo from root directory
 .venv/bin/streamlit run examples/showcase_demo.py
 ```
-
-## Project goal
-
-Let a researcher write **one `.py` file** (or a small module) where they:
-
-1. **Load data and weights** — `pd.read_csv`, `np.load`, `torch.load`, paths on disk.
-2. **Implement recommendation logic** — plain Python: numpy, custom classes, existing notebook code.
-3. **Call the library** — layout, widgets, charts, markdown; the rest runs automatically.
-
-This is not a training framework or production serving. It is a **thin presentation layer** — the researcher writes the model, the library writes Streamlit.
-
----
-
-## What the researcher writes vs. what the library handles
-
-| Researcher writes (public API) | Library handles internally (hidden) |
-|--------------------------------|-------------------------------------|
-| Load data and weights from disk | `@st.cache_data` / `@st.cache_resource` for data and models |
-| Function or class `recommend(user_id, k, **params)` | Adapter + cache invalidation on param change |
-| Calls `sr.rows(...)`, `sr.plot(...)`, `sr.markdown(...)` | Layout, rerun logic |
-| Params via `sr.slider(...)` or YAML | Widget -> `**params`, `st.session_state` |
-| Optional custom section in `demo.py` | Session storage, click history, rerun state |
-
-**Principle:** The demo script should read like **a notebook converted to `.py`** — clear, no Streamlit magic. All `st.cache_*`, `session_state`, fragments, and rerun optimizations belong **in the library**, not in the researcher's demo file.
-
----
-
-## Target users and UX principles
-
-| Principle | Meaning |
-|-----------|---------|
-| **Code-first** | Main path = Python script, not UI file upload |
-| **Ready to use** | `pip install` + ~30 lines of clear code -> running demo |
-| **Zero Streamlit boilerplate** | Researcher does not import `streamlit`, does not manage cache/state/rerun |
-| **Convention over configuration** | Sensible defaults; YAML only for repeated param blocks |
-| **Easily extensible** | New layout = one function; new model = one function with a fixed signature |
-| **Simplicity first** | Minimum abstractions outward; complexity only inside the library where needed (see `.cursor/skills/SKILL.md`) |
-
----
-
-## Requirements
 
 ### Must have (MVP)
 
