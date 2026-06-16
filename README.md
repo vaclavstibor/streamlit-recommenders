@@ -77,6 +77,9 @@ Not UI weight upload. The researcher loads files and implements logic in `demo.p
 
 All three go through the same **adapter** — the rest of the library only calls `recommend(user_id, k, **params)`.
 
+> [!NOTE]
+> TODO: There will be probably defined abstract/protocol recommender class for the package -- some predefined models, thus recommend will be probably just a call to the model. The same way as is defined recommend function in the showcase demo -> reocmmender class with .recommend() method.
+
 ```python
 # Pattern A — typical researcher demo (~30 lines)
 import numpy as np
