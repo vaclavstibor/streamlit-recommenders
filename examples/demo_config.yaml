@@ -1,0 +1,10 @@
+params:
+  - name: num_recs
+    type: selectbox
+    options: [5, 10, 20]
+    default: 10
+
+layout: cards
+item_columns:
+  title: title
+  image: image_url
