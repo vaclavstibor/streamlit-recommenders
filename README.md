@@ -2,15 +2,25 @@
 
 Lightweight Python library for **interactive demo and evaluation of recommender systems** in Streamlit. Target users: **researchers and mathematicians** who **write their own Python code** — load data, implement scoring, run a demo. The library saves Streamlit boilerplate, not the math.
 
-**[Capabilities (API + demos)](docs/CAPABILITIES.md)** | **[Interfaces & contracts](docs/CONTRACTS.md)** | Showcase: `.venv/bin/streamlit run examples/showcase_demo.py`
+| **[Capabilities (API + demos)](docs/CAPABILITIES.md)** | **[Interfaces & contracts](docs/CONTRACTS.md)** | Showcase: `.venv/bin/streamlit run examples/showcase_demo.py` |
+|--------------------------------------------------------|-------------------------------------------------|-------------------------------------------------|
 
-```mermaid
-flowchart LR
-  pkg["streamlit_recommenders/"] -->|import as sr| lib[Python package]
-  ex["examples/"] -->|streamlit run| demos[Demo scripts]
+```bash
+# Use run_demo.sh script to run the showcase demo
+#./scripts/run_demo.sh
+
+# Or do it manually:
+
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate
+
+# Install dependencies
+pip install -e .
+
+# Run showcase demo from root directory
+.venv/bin/streamlit run examples/showcase_demo.py
 ```
-
----
 
 ## Project goal
 

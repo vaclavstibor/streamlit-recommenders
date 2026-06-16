@@ -21,7 +21,13 @@ flowchart TB
 
 ```bash
 python3.11 -m venv .venv
+
+# option A — editable install (recommended)
 .venv/bin/pip install -e ".[dev]"
+
+# option B — requirements files + editable package
+# .venv/bin/pip install -r requirements-dev.txt && .venv/bin/pip install -e .
+
 .venv/bin/python examples/generate_sample_data.py   # one-time setup
 
 # recommended — always uses the correct Python + package:
