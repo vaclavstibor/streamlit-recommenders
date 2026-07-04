@@ -34,3 +34,55 @@ def plot(
 
     fig.update_layout(margin=dict(l=20, r=20, t=40, b=20), paper_bgcolor="rgba(0,0,0,0)")
     st.plotly_chart(fig, width="stretch")
+
+
+def plot_metric_comparison(
+    df: pd.DataFrame,
+    *,
+    metric_col: str = "metric",
+    value_col: str = "value",
+    model_col: str = "model",
+    title: str = "Metric comparison",
+) -> None:
+    if df.empty:
+        st.info("No metrics to plot.")
+        return
+    fig = px.bar(
+        df,
+        x=metric_col,
+        y=value_col,
+        color=model_col,
+        barmode="group",
+        title=title,
+    )
+    fig.update_layout(margin=dict(l=20, r=20, t=40, b=20), paper_bgcolor="rgba(0,0,0,0)")
+    st.plotly_chart(fig, width="stretch")
+
+
+def plot_ranked_items(
+    df: pd.DataFrame,
+    *,
+    title_col: str = "title",
+    score_col: str = "score",
+    title: str = "Ranked items",
+) -> None:
+    if df.empty:
+        st.info("No ranked items to plot.")
+        return
+    fig = px.bar(df, x=title_col, y=score_col, title=title)
+    fig.update_layout(margin=dict(l=20, r=20, t=40, b=20), paper_bgcolor="rgba(0,0,0,0)")
+    st.plotly_chart(fig, width="stretch")
+
+
+def plot_score_distribution(
+    df: pd.DataFrame,
+    *,
+    score_col: str = "score",
+    title: str = "Score distribution",
+) -> None:
+    if df.empty:
+        st.info("No scores to plot.")
+        return
+    fig = px.histogram(df, x=score_col, title=title)
+    fig.update_layout(margin=dict(l=20, r=20, t=40, b=20), paper_bgcolor="rgba(0,0,0,0)")
+    st.plotly_chart(fig, width="stretch")
