@@ -10,7 +10,6 @@ from streamlit_recommenders.models.adapter import call_recommend
 
 
 def hash_params(params: dict[str, Any]) -> str:
-    """Stable hash for recommend() cache keys."""
     payload = json.dumps(params, sort_keys=True, default=str)
     return hashlib.md5(payload.encode()).hexdigest()
 
@@ -26,11 +25,22 @@ def cached_recommend(
     user_id: str | int,
     k: int,
     params_hash: str,
+    session_items: tuple,
+    selections_json: str,
     _recommend: Callable[..., list],
     **params: Any,
 ) -> tuple:
-    """Cache recommend() output; params_hash drives invalidation on slider change."""
-    return tuple(call_recommend(_recommend, user_id, k, **params))
+    selections = json.loads(selections_json) if selections_json else []
+    return tuple(
+        call_recommend(
+            _recommend,
+            user_id,
+            k,
+            list(session_items),
+            selections,
+            **params,
+        )
+    )
 
 
 def get_recommendations(
@@ -38,14 +48,21 @@ def get_recommendations(
     user_id: str | int,
     k: int,
     params: dict[str, Any],
+    session_items: list | None = None,
+    selections: list[dict] | None = None,
 ) -> list:
-    params_hash = hash_params(params)
-    recommend_id = id(recommend)
+    session_tuple = tuple(session_items or [])
+    selections_json = json.dumps(selections or [], sort_keys=True, default=str)
+    params_hash = hash_params(
+        {**params, "session_items": session_tuple, "selections": selections_json}
+    )
     result = cached_recommend(
-        recommend_id,
+        id(recommend),
         user_id,
         k,
         params_hash,
+        session_tuple,
+        selections_json,
         recommend,
         **params,
     )

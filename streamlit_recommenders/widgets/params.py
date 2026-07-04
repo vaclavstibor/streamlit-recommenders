@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Any, Literal
 
+from streamlit_recommenders.runtime.keys import param_key
+
 
 @dataclass(frozen=True)
 class ParamSpec:
@@ -81,7 +83,7 @@ def _render_from_yaml(spec: dict) -> Any:
             float(spec["max"]),
             float(spec.get("default", spec["min"])),
             step=spec.get("step"),
-            key=f"sr_param_{name}",
+            key=param_key(name),
         )
     if ptype == "selectbox":
         options = spec["options"]
@@ -91,7 +93,7 @@ def _render_from_yaml(spec: dict) -> Any:
             spec.get("label", name),
             options,
             index=index,
-            key=f"sr_param_{name}",
+            key=param_key(name),
         )
     raise ValueError(f"Unknown param type: {ptype}")
 
@@ -106,7 +108,7 @@ def _render_spec(name: str, spec: ParamSpec) -> Any:
             spec.max_value,
             spec.default,
             step=spec.step,
-            key=f"sr_param_{name}",
+            key=param_key(name),
         )
     if spec.kind == "selectbox":
         options = list(spec.options or [])
@@ -115,6 +117,6 @@ def _render_spec(name: str, spec: ParamSpec) -> Any:
             spec.label,
             options,
             index=index,
-            key=f"sr_param_{name}",
+            key=param_key(name),
         )
     raise ValueError(f"Unknown ParamSpec kind: {spec.kind}")

@@ -20,10 +20,19 @@ def test_adapt_class():
 
 
 def test_call_recommend():
-    def fn(user_id, k, alpha=0.5):
-        return [user_id] * k
+    def fn(user_id, k, alpha=0.5, session_items=None, selections=None):
+        return [user_id] * k + list(session_items or [])
 
     assert call_recommend(fn, 7, 3, alpha=0.1) == [7, 7, 7]
+    assert call_recommend(fn, 7, 3, session_items=[9], alpha=0.1) == [7, 7, 7, 9]
+    assert call_recommend(
+        fn,
+        7,
+        3,
+        session_items=[9],
+        selections=[{"item_id": 9, "rank": 0}],
+        alpha=0.1,
+    ) == [7, 7, 7, 9]
 
 
 def test_hash_params_order_independent():
