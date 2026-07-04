@@ -11,9 +11,9 @@ flowchart TB
   subgraph demo["Your demo.py"]
     data["items DataFrame\ninteractions DataFrame"]
     rec["recommend(user, k, **params)\nfunction · class · dict of models"]
-    call["sr.run(recommend, items, params, body)"]
-    data --> call
-    rec --> call
+    app_call["sr.run(recommend, items, params, body)"]
+    data --> app_call
+    rec --> app_call
   end
 
   subgraph api["Public API — import streamlit_recommenders as sr"]
@@ -60,7 +60,7 @@ flowchart TB
     extra["plots · tables · markdown"]
   end
 
-  call --> run
+  app_call --> run
   run --> sidebar
   run --> sections
   run --> body_hook
