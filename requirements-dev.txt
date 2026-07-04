@@ -1,4 +1,3 @@
-# Dev / examples (joblib for pickle_demo; pytest for tests)
+# Dev / tests
 -r requirements.txt
 pytest>=7.0
-joblib>=1.3

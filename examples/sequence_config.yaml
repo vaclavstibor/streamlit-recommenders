@@ -1,11 +1,9 @@
-# num_recs from YAML; alpha and layout are set imperatively in the demo
-
 params:
   - name: num_recs
     type: selectbox
     label: Number of recommendations
-    options: [5, 10, 15]
-    default: 10
+    options: [5, 10, 20]
+    default: 20
 
 item_columns:
   title: title

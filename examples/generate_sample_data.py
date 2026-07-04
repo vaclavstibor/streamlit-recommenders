@@ -1,4 +1,4 @@
-"""Generate synthetic sample data for examples."""
+"""Generate synthetic movie-like sample data for examples."""
 
 from pathlib import Path
 
@@ -9,27 +9,51 @@ ROOT = Path(__file__).resolve().parent / "sample_data"
 ROOT.mkdir(parents=True, exist_ok=True)
 
 rng = np.random.default_rng(42)
-n_users, n_items, dim = 8, 24, 16
+n_users, n_items, dim = 10, 30, 16
+genres = ["Action", "Drama", "Sci-Fi", "Comedy", "Documentary"]
 
 items = pd.DataFrame(
     {
         "item_id": range(n_items),
-        "title": [f"Item {i}" for i in range(n_items)],
+        "title": [f"Movie {i:02d}" for i in range(n_items)],
         "image_url": [
             f"https://picsum.photos/seed/item{i}/200/300" for i in range(n_items)
         ],
-        "description": [f"Description for item {i}" for i in range(n_items)],
-        "category": rng.choice(["A", "B", "C"], size=n_items),
+        "description": [
+            f"A {genres[i % len(genres)].lower()} recommendation candidate used in the demo catalog."
+            for i in range(n_items)
+        ],
+        "genre": [genres[i % len(genres)] for i in range(n_items)],
     }
 )
 items.to_csv(ROOT / "items.csv", index=False)
 
+users = pd.DataFrame(
+    {
+        "user_id": range(n_users),
+        "label": [f"Research user {i}" for i in range(n_users)],
+    }
+)
+users.to_csv(ROOT / "users.csv", index=False)
+
 interactions = []
 for user_id in range(n_users):
-    seen = rng.choice(n_items, size=6, replace=False)
-    for item_id in seen:
-        interactions.append({"user_id": user_id, "item_id": int(item_id), "rating": rng.integers(1, 6)})
-pd.DataFrame(interactions).to_csv(ROOT / "interactions.csv", index=False)
+    seen = rng.choice(n_items, size=8, replace=False)
+    for step, item_id in enumerate(seen):
+        interactions.append(
+            {
+                "user_id": user_id,
+                "item_id": int(item_id),
+                "rating": int(rng.integers(1, 6)),
+                "timestamp": user_id * 100 + step,
+            }
+        )
+interactions_df = pd.DataFrame(interactions)
+train = interactions_df.groupby("user_id").head(6).reset_index(drop=True)
+test = interactions_df.groupby("user_id").tail(2).reset_index(drop=True)
+train.to_csv(ROOT / "interactions.csv", index=False)
+train.to_csv(ROOT / "train_interactions.csv", index=False)
+test.to_csv(ROOT / "test_interactions.csv", index=False)
 
 user_emb = rng.normal(size=(n_users, dim))
 item_emb = rng.normal(size=(n_items, dim))
@@ -42,27 +66,5 @@ for user_id in range(n_users):
     for item_id, score in enumerate(raw):
         scores_rows.append({"user_id": user_id, "item_id": item_id, "score": float(score)})
 pd.DataFrame(scores_rows).to_csv(ROOT / "scores.csv", index=False)
-
-try:
-    import joblib
-
-    class SimpleRecommender:
-        def __init__(self, interactions_df: pd.DataFrame):
-            self.interactions_df = interactions_df
-            self.popularity = interactions_df.groupby("item_id").size()
-
-        def recommend(self, user_id, k, **params):
-            seen = set(
-                self.interactions_df.loc[
-                    self.interactions_df.user_id == user_id, "item_id"
-                ]
-            )
-            ranked = self.popularity.sort_values(ascending=False)
-            return [int(i) for i in ranked.index if i not in seen][:k]
-
-    interactions_df = pd.read_csv(ROOT / "interactions.csv")
-    joblib.dump(SimpleRecommender(interactions_df), ROOT / "model.pkl")
-except ImportError:
-    pass
 
 print(f"Sample data written to {ROOT}")

@@ -1,0 +1,13 @@
+layout: cards
+
+params:
+  - name: num_recs
+    type: selectbox
+    label: Number of recommendations
+    options: [5, 10, 20]
+    default: 20
+
+item_columns:
+  title: title
+  image: image_url
+  description: description
