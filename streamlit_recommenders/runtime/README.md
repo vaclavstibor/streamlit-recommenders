@@ -1,30 +1,29 @@
-# Streamlit runtime internals
+# Runtime internals
 
-Researchers do not import these modules. Demo scripts only call `sr.*`.
+Not part of the public API. Demo scripts use `sr.*` only.
 
-## Cache strategy
+## Cache
 
-| What | Mechanism | Invalidation |
-|------|-----------|--------------|
-| `load_items` / `load_interactions` (file path) | `@st.cache_data` in `cache.load_csv` | File change on disk (Streamlit path hash) |
-| `recommend()` output | `@st.cache_data` in `cache.cached_recommend` | Change in `user_id`, `k`, or `hash_params(**params)` |
-| DataFrame passed directly to `sr.run()` | No extra cache — already in script memory | — |
+| What | Where |
+|------|-------|
+| CSV load | `@st.cache_data` in `cache.load_csv` |
+| `recommend()` | `@st.cache_data` keyed by user, k, params, session_items, selections |
 
 ## Session state
 
 | Key | Purpose |
 |-----|---------|
-| `current_user` | Active user for recommendations |
-| `clicked_items` | Clicked items (foundation for post-MVP history) |
-| `params_snapshot` | Reserved for param diff between reruns |
+| `current_user` | Sidebar selection |
+| `selected_ids` | Items clicked this session |
+| `selections` | Per-section `{item_id, rank, source}` |
+| `displayed_recs` | Carousel ids per recommender section |
+| `run_context_hash` | Clears displayed recs on user/k/params change |
 
-## Rerun model
+## Rerun flow (`runner.py`)
 
-Streamlit reruns the entire script on interaction. `sr.run()`:
+1. Resolve sidebar params and user
+2. Load or reuse `displayed_recs` per section
+3. Render profile strips + item carousel
+4. **Recommend** button recomputes and stores new ids, then `st.rerun()`
 
-1. Resolves sidebar params (sliders / selectboxes).
-2. Reads `user_id` from the selectbox.
-3. Calls `get_recommendations()` — cache hit if params unchanged.
-4. Renders the layout.
-
-Data from top-level `pd.read_csv` in a demo script reloads on every rerun — for large data use `sr.load_items(path)`.
+Card click → `record_selection()` → immediate rerun. The selected item stays in the carousel as a disabled, greyed card and appears in the profile strip.

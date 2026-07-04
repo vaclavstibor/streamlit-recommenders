@@ -1,263 +1,166 @@
-# Streamlit Recommenders
+# streamlit_recommenders
 
-Lightweight Python library for **interactive demo and evaluation of recommender systems** in Streamlit. Target users: **researchers and mathematicians** who **write their own Python code** — load data, implement scoring, run a demo. The library saves Streamlit boilerplate, not the math.
+Lightweight Streamlit library for **interactive recommender demos**. You load data, implement `recommend()`, the library handles UI, cache, and session state.
 
-| **[Capabilities (API + demos)](docs/CAPABILITIES.md)** | **[Interfaces & contracts](docs/CONTRACTS.md)** |
-|--------------------------------------------------------|-------------------------------------------------|
+| [Capabilities](docs/CAPABILITIES.md) | [Contracts](docs/CONTRACTS.md) |
 
-## Project goal
+## Architecture
 
-Let a researcher write **one `.py` file** (or a small module) where they:
+```mermaid
+flowchart TB
+  subgraph demo["Your demo.py"]
+    data["items DataFrame\ninteractions DataFrame"]
+    rec["recommend(user, k, **params)\nfunction · class · dict of models"]
+    call["sr.run(recommend, items, params, body)"]
+    data --> call
+    rec --> call
+  end
 
-1. **Load data and weights** — `pd.read_csv`, `np.load`, `torch.load`, paths on disk.
-2. **Implement recommendation logic** — plain Python: numpy, custom classes, existing notebook code.
-3. **Call the library** — layout, widgets, charts, markdown; the rest runs automatically.
+  subgraph api["Public API — import streamlit_recommenders as sr"]
+    run["run() · load_items() · load_interactions()"]
+    layout_fn["rows() · grid() · cards()"]
+    viz_fn["plot() · table() · markdown()"]
+    state_fn["selected_items() · current_user() · param_value()"]
+    models_fn["EmbeddingPopularity · ItemKNN · EASE\nSequentialCF · Popularity · Random"]
+  end
 
-This is not a training framework or production serving. It is a **thin presentation layer** — the researcher writes the model, the library writes Streamlit.
+  subgraph runner["runner.py — orchestration"]
+    sidebar["sidebar: user picker + params"]
+    sections["per recommender: cache → carousel → Recommend"]
+    body_hook["optional body() callback"]
+  end
 
-## What the researcher writes vs. what the library handles
+  subgraph models["models/"]
+    adapter["adapter.py — normalize fn / .recommend()"]
+    protocol["RecommenderProtocol"]
+  end
 
-| Researcher writes (public API) | Library handles internally (hidden) |
-|--------------------------------|-------------------------------------|
-| Load data and weights from disk | `@st.cache_data` / `@st.cache_resource` for data and models |
-| Function or class `recommend(user_id, k, **params)` | Adapter + cache invalidation on param change |
-| Calls `sr.rows(...)`, `sr.plot(...)`, `sr.markdown(...)` | Layout, rerun logic |
-| Params via `sr.slider(...)` or YAML | Widget -> `**params`, `st.session_state` |
-| Optional custom section in `demo.py` | Session storage, click history, rerun state |
+  subgraph runtime["runtime/ — internal"]
+    cache["cache.py — @cache_data on recommend()"]
+    state["state.py — selected_ids, displayed_recs"]
+    seen["seen.py — effective_seen(), session user"]
+    compare["compare.py — dict → labeled rows"]
+  end
 
-**Principle:** The demo script should read like **a notebook converted to `.py`** — clear, no Streamlit magic. All `st.cache_*`, `session_state`, fragments, and rerun optimizations belong **in the library**, not in the researcher's demo file.
+  subgraph layouts["layouts/"]
+    card["item_card.py — poster button"]
+    section["section.py — carousel + Recommend btn"]
+    modes["rows · grid · cards"]
+  end
 
-## Target users and UX principles
+  subgraph widgets["widgets/"]
+    params["params.py — slider, selectbox"]
+    profile["profile_strip · user_profile"]
+  end
 
-| Principle | Meaning |
-|-----------|---------|
-| **Code-first** | Main path = Python script, not UI file upload |
-| **Ready to use** | `pip install` + ~30 lines of clear code -> running demo |
-| **Zero Streamlit boilerplate** | Researcher does not import `streamlit`, does not manage cache/state/rerun |
-| **Convention over configuration** | Sensible defaults; YAML only for repeated param blocks |
-| **Easily extensible** | New layout = one function; new model = one function with a fixed signature |
-| **Simplicity first** | Minimum abstractions outward; complexity only inside the library where needed (see `.cursor/skills/SKILL.md`) |
+  subgraph ui["Streamlit page"]
+    strips["Past interactions · Selected this session"]
+    carousel["Clickable poster cards"]
+    recommend_btn["Recommend per row"]
+    extra["plots · tables · markdown"]
+  end
 
-## Requirements
-
-```bash
-# Use run_demo.sh script to run the showcase demo
-#./scripts/run_demo.sh
-
-# Or do it manually:
-
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate
-
-# Install dependencies
-pip install -e .
-
-# Run showcase demo from root directory
-.venv/bin/streamlit run examples/showcase_demo.py
+  call --> run
+  run --> sidebar
+  run --> sections
+  run --> body_hook
+  sections --> adapter
+  adapter --> rec
+  sections --> cache
+  cache --> adapter
+  sections --> state
+  sections --> compare
+  sections --> section
+  section --> card
+  section --> modes
+  sidebar --> params
+  sidebar --> profile
+  section --> carousel
+  profile --> strips
+  section --> recommend_btn
+  body_hook --> viz_fn
+  viz_fn --> extra
+  models_fn --> adapter
 ```
 
-### Must have (MVP)
+**Flow:** sidebar params + user → cached `recommend()` → item ids → poster carousel. Card click updates session state; **Recommend** recomputes that row.
 
-#### 1. Recommendation display (Items)
+## Quick start
 
-Show recommended items in three layouts:
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+.venv/bin/python examples/generate_sample_data.py   # once
+./scripts/run_demo.sh                               # baseline comparison demo
+```
 
-- **Rows** — Netflix-like horizontal rows
-- **Grid** — e-shop grid
-- **Cards** — shopping-app cards with image and metadata
-
-Item metadata must be **trivial to pass** — ideally as pandas `DataFrame` columns (title, image URL, description, price, …). Layouts pick columns from config or convention (`title`, `image_url`, …).
-
-#### 2. Model — top 3 ways the researcher **writes it in code**
-
-Not UI weight upload. The researcher loads files and implements logic in `demo.py`. The library defines a **simple contract** and three common patterns:
-
-| # | Pattern | Typical researcher code | When to use |
-|---|---------|-------------------------|-------------|
-| **A** | **Function / class** *(primary)* | `def recommend(user_id, k, alpha=0.5): ...` or class with `.recommend()` | Custom scoring, dynamic params, experiments |
-| **B** | **Trained object** | `model = joblib.load("model.pkl")` + thin wrapper | Sklearn / serialized custom class on disk |
-| **C** | **Precomputed scores** | `scores = pd.read_parquet(...)` + lookup in `recommend()` | Offline eval, static demo, quick prototype |
-
-All three go through the same **adapter** — the rest of the library only calls `recommend(user_id, k, **params)`.
-
-> [!NOTE]
-> TODO: There will be probably defined abstract/protocol recommender class for the package -- some predefined models, thus recommend will be probably just a call to the model. The same way as is defined recommend function in the showcase demo -> reocmmender class with .recommend() method.
+## Minimal demo
 
 ```python
-# Pattern A — typical researcher demo (~30 lines)
-import numpy as np
-import pandas as pd
 import streamlit_recommenders as sr
 
-ITEMS = pd.read_csv("data/items.csv")
-INTERACTIONS = pd.read_csv("data/interactions.csv")
-USER_EMB = np.load("artifacts/user_emb.npy")
-ITEM_EMB = np.load("artifacts/item_emb.npy")
+ITEMS = sr.load_items("data/items.csv")
+INTERACTIONS = sr.load_interactions("data/interactions.csv")
 
-def recommend(user_id: int, k: int, alpha: float = 0.5) -> list[int]:
-    scores = USER_EMB @ ITEM_EMB.T
-    seen = set(INTERACTIONS.loc[INTERACTIONS.user_id == user_id, "item_id"])
-    ranked = np.argsort(scores)[::-1]
-    return [i for i in ranked if i not in seen][:k]
+def recommend(user_id, k, alpha=0.5, session_items=None, **params):
+    ...
 
 sr.run(
     recommend=recommend,
     items=ITEMS,
+    interactions=INTERACTIONS,
     layout="rows",
     params={"alpha": sr.slider("alpha", 0.0, 1.0, 0.5)},
 )
 ```
 
-#### 3. Interactive controls (sliders / steering)
+## What you write vs. what the library does
 
-- Streamlit widgets for **model param tuning** (e.g. `alpha`, `k`, `temperature`).
-- Params defined either **imperatively** (`sr.slider(...)`) or **declaratively** (YAML).
-- Param change -> recompute and show new recommendations immediately.
+| You | Library |
+|-----|---------|
+| `recommend(user_id, k, **params)` or `RecommenderProtocol` | Adapter, cache, sidebar params |
+| `items`, `interactions`, optional `users` / `test` | `Dataset`, validation, user/session UI |
+| Optional `body()` callback | Metrics, plots, tables, markdown below recs |
+| Dict of models for compare | Stacked rows + per-model **Recommend** |
 
-#### 4. Visualizations
+## Layouts
 
-```python
-sr.plot(df)   # pandas DataFrame -> interactive Plotly chart
-sr.table(df)  # pandas DataFrame -> formatted table
-```
+All layouts share the same **clickable poster cards** (hover title, description tooltip).
 
-- Primarily **pandas**; polars as a future extension.
-- Charts support multiple axes via `x`, `y`, `color` params or conventions.
+| Layout | Display |
+|--------|---------|
+| `rows` | One horizontal row with fixed-width cards and side scroll |
+| `cards` | Same as `rows` |
+| `grid` | Multiple rows, 4 fixed-width cards |
 
-#### 5. Markdown / supplementary material
+Compare mode (`recommend={...}`) always uses `rows`.
 
-Demos often include method description, paper links, math formulas.
+## Session UX
 
-**Recommended approach:** Streamlit flow + generated markdown (not MD templates with embedded widgets).
+1. Click item cards to add them to **Selected this session**
+2. Click **Recommend** on a row to refresh that model with current selections
+3. Read state in `body()`: `sr.selected_items()`, `sr.current_user()`, `sr.param_value("alpha")`
 
-#### 6. Declarative YAML config for repeated blocks
+## Built-ins
 
-Instead of hand-writing widgets for every parameter — see `examples/demo_config.yaml`.
+| Area | API |
+|------|-----|
+| Data | `Dataset`, `ColumnMap`, `load_dataset()`, `validate_dataset()` |
+| Recommenders | `ItemKNNRecommender`, `EASERecommender`, `SequentialCFRecommender`, `PopularityRecommender`, `RandomRecommender` |
+| Metrics | `evaluate()`, `hit_rate_at_k()`, `recall_at_k()`, `ndcg_at_k()`, `mrr_at_k()`, `coverage()` |
+| Viz | `plot_metric_comparison()`, `plot_ranked_items()`, `plot_score_distribution()` |
 
-### Nice to have (post-MVP)
+## Examples
 
-- Interaction history affecting recommendations over time
-- Polars backend for `plot()` / `table()`
-- Metrics HR@k, NDCG@k, coverage
-- Session export as JSON
+| File | Pattern |
+|------|---------|
+| `baseline_comparison_demo.py` | Custom method vs baselines, metrics, session profile |
+| `appendix_demo.py` | Markdown appendix, equations, diagnostics |
+| `sequence_cf_demo.py` | Sequence-aware CF baseline and next-item evaluation |
 
----
+## Not in scope
 
-## Architecture
-
-### How it fits together
-
-```mermaid
-flowchart LR
-  subgraph demo["Your demo.py"]
-    load[load items, interactions]
-    rec[def recommend user, k, ...]
-    run[sr.run recommend, items, ...]
-  end
-
-  subgraph lib["Library — runner.py"]
-    sidebar[sidebar widgets params, user]
-    cache[cache then recommend]
-    layouts[layouts rows / grid / cards]
-    body[optional body plot, table]
-  end
-
-  ui[Streamlit UI]
-
-  load --> sidebar
-  rec --> cache
-  run --> sidebar
-  run --> cache
-  run --> layouts
-  run --> body
-  layouts --> ui
-  body --> ui
-```
-
-| You provide | Library handles |
-|-------------|-----------------|
-| `items` DataFrame (catalog + metadata) | Join ids -> titles, images |
-| `interactions` DataFrame (optional) | User selectbox in sidebar |
-| `recommend(user_id, k, **params)` | Cache, adapter, call on param change |
-| `params={...}` or YAML | Sliders / selectboxes in sidebar |
-| `body()` callback (optional) | Extra charts, tables, markdown |
-
-### One rerun (slider or user change)
-
-```mermaid
-sequenceDiagram
-  participant User
-  participant ST as Streamlit
-  participant Demo as demo.py
-  participant Run as sr.run
-  participant Cache
-  participant Model as recommend
-
-  User->>ST: change slider or user
-  ST->>Demo: rerun script top to bottom
-  Demo->>Run: sr.run(...)
-  Run->>Cache: lookup user_id, k, params
-  alt cache miss
-    Cache->>Model: recommend(user_id, k, **params)
-    Model-->>Cache: item ids
-  end
-  Cache-->>Run: item ids
-  Run->>ST: render layouts and optional body()
-```
-
-### Public API -> modules
-
-| `import streamlit_recommenders as sr` | Module |
-|---------------------------------------|--------|
-| `sr.run()` | `runner.py` |
-| `sr.load_items()`, `sr.load_interactions()` | `runner.py` + `runtime/cache.py` |
-| `sr.slider()`, `sr.selectbox()` | `widgets/params.py` |
-| `sr.rows()`, `sr.grid()`, `sr.cards()` | `layouts/` |
-| `sr.plot()`, `sr.table()` | `viz/` |
-| `sr.markdown()`, `sr.markdown_file()` | `content/` |
-| `config=` YAML | `config/yaml_loader.py` |
-
-Everything under `runtime/`, `models/adapter.py` is internal — see [docs/CONTRACTS.md](docs/CONTRACTS.md).
-
-### Directory layout
-
-```mermaid
-flowchart TB
-  pkg["streamlit_recommenders/"]
-  pkg --> init["__init__.py — public API"]
-  pkg --> runner["runner.py — sr.run orchestration"]
-  pkg --> models["models/ — protocol, adapter"]
-  pkg --> runtime["runtime/ — internal: cache, state, rerun"]
-  pkg --> layouts["layouts/ — rows, grid, cards"]
-  pkg --> widgets["widgets/ — params"]
-  pkg --> viz["viz/ — plot, table"]
-  pkg --> content["content/ — markdown"]
-  pkg --> config["config/ — yaml_loader"]
-
-  ex["examples/ — runnable demos (not part of the package)"]
-```
-
-See [docs/CAPABILITIES.md](docs/CAPABILITIES.md) for the full public API.  
-See [docs/CONTRACTS.md](docs/CONTRACTS.md) for formal interfaces (recommender, data schemas, params, planned metrics).
-
----
-
-## What this library is **not**
-
-- Not a training pipeline
-- Not a production API (no auth, rate limiting, A/B tests)
-- Not a general Streamlit framework — only the recommender demo use case
-
----
-
-## Open questions
-
-- **Package name `streamlit_recommenders`** — OK for PyPI? Alternatives: `streamlit-recsys`, `recsys-demo`, `st-recommenders`.
-- **Plotly vs Altair** — Plotly as default; Altair optional later.
-- **`sr.run()` vs free-form script** — support both or only `sr.run()` in MVP?
-
----
+Training pipelines, production serving, and heavy model libraries as required dependencies. RecPack, Cornac, and LensKit can be wrapped externally or added later as optional extras.
 
 ## License
 

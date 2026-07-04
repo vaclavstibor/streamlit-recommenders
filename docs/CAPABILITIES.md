@@ -1,147 +1,95 @@
-# streamlit_recommenders capabilities (MVP)
+# Capabilities
 
-Practical overview of the implemented API. Architecture and design: [README.md](../README.md).  
-Formal interfaces: **[CONTRACTS.md](CONTRACTS.md)**.
+Practical API overview. Formal contracts: [CONTRACTS.md](CONTRACTS.md).
 
-## Project structure
-
-```mermaid
-flowchart TB
-  pkg["streamlit_recommenders/ — Python package, import as sr"]
-  ex["examples/ — runnable demos, streamlit run examples/..."]
-  docs["docs/ — documentation"]
-  tests["tests/"]
-```
-
-**No `app.py` in the project root.** Library ≠ demo. Demo scripts live in `examples/`.
-
-## Running
-
-**Requires Python ≥3.10 and the package installed in the same env as Streamlit.**
+## Install & run
 
 ```bash
-python3.11 -m venv .venv
-
-# option A — editable install (recommended)
-.venv/bin/pip install -e ".[dev]"
-
-# option B — requirements files + editable package
-# .venv/bin/pip install -r requirements-dev.txt && .venv/bin/pip install -e .
-
-.venv/bin/python examples/generate_sample_data.py   # one-time setup
-
-# recommended — always uses the correct Python + package:
+pip install -e ".[dev]"
+.venv/bin/python examples/generate_sample_data.py
 ./scripts/run_demo.sh
-
-# or explicitly:
-.venv/bin/streamlit run examples/showcase_demo.py
 ```
 
-**Note:** System-wide `streamlit run ...` (e.g. Python 3.8) **will not work** — the package is not installed there.
-
----
+Requires **Python ≥3.10** and the project venv.
 
 ## Public API
 
-| Function | Description |
-|----------|-------------|
-| `sr.run(...)` | Full app: sidebar, recommendations, optional `body` |
-| `sr.load_items(path)` | Load item catalog (cached) |
-| `sr.load_interactions(path)` | Load interactions (cached) |
-| `sr.slider(...)` | Define a slider param, pass in `params={}` |
-| `sr.selectbox(...)` | Define a selectbox param, pass in `params={}` |
-| `sr.rows(items, rec_ids)` | Netflix-like row |
-| `sr.grid(items, rec_ids)` | E-shop grid |
-| `sr.cards(items, rec_ids)` | Cards with metadata |
-| `sr.plot(df, x=, y=, color=)` | Plotly chart from pandas DataFrame |
-| `sr.table(df)` | Table from pandas DataFrame |
-| `sr.markdown(text)` | Markdown + LaTeX |
-| `sr.markdown_file(path)` | Load a `.md` file |
+| Area | API |
+|------|-----|
+| App | `sr.run(...)` |
+| Data | `load_items`, `load_interactions`, `load_users`, `load_dataset`, `Dataset`, `ColumnMap`, `validate_dataset` |
+| Params | `slider`, `selectbox`, `param_value` |
+| Layouts | `rows`, `grid`, `cards` |
+| Session | `current_user`, `selected_items`, `selections` |
+| Content | `plot`, `table`, `markdown`, `markdown_file` |
+| Viz helpers | `plot_metric_comparison`, `plot_ranked_items`, `plot_score_distribution` |
+| Metrics | `evaluate`, `hit_rate_at_k`, `recall_at_k`, `ndcg_at_k`, `mrr_at_k`, `coverage` |
+| Models | `EmbeddingPopularityRecommender`, `ItemKNNRecommender`, `EASERecommender`, `SequentialCFRecommender`, `PopularityRecommender`, `RandomRecommender` |
 
-## Model contract
-
-Full specification: **[CONTRACTS.md](CONTRACTS.md)** (recommender, items, interactions, params, metrics).
-
-The researcher implements one function (or an object with `.recommend()`):
-
-```python
-def recommend(user_id, k: int, **params) -> list[item_id]:
-    ...
-```
-
-Three typical patterns (see `examples/`):
-
-| Pattern | File | How |
-|---------|------|-----|
-| **A — custom function** | `minimal_demo.py` | numpy/pandas scoring in `recommend()` |
-| **B — joblib object** | `pickle_demo.py` | `joblib.load()` + thin wrapper |
-| **C — precomputed matrix** | `matrix_demo.py` | lookup in a scores DataFrame |
-
-## What `sr.run()` handles for you
-
-- Streamlit page config, sidebar (user + params)
-- Cache on `recommend()` — recomputes only when params / user change
-- Session state — item clicks (`Saved this session: ...`)
-- YAML config (optional) — params, layout, column mapping
-
-### `sr.run()` parameters
+## `sr.run()`
 
 ```python
 sr.run(
-    recommend=fn,              # required
-    items=df,                  # required — catalog with metadata
-    interactions=df,           # optional — user picker + filter seen items
-    layout="rows",             # rows | grid | cards (or from YAML / params)
-    params={"alpha": sr.slider(...)},  # imperative widgets
-    config="demo_config.yaml", # optional — YAML overrides
-    title="...",
-    subtitle="...",
-    item_columns={"title": "name", "image": "image_url"},
-    body=lambda: sr.plot(df),  # optional section below recommendations
+    recommend=fn_or_model_or_dict,
+    items=items,
+    interactions=train,
+    layout="rows",
+    params={"alpha": sr.slider("alpha", 0.0, 1.0, 0.5)},
+    config="baseline_config.yaml",
+    body=lambda: sr.table(metrics),
 )
 ```
 
-### YAML config
+Pass a dict for compare mode:
 
-```yaml
-layout: rows
-item_columns:
-  title: title
-  image: image_url
-params:
-  - name: alpha
-    type: slider
-    min: 0.0
-    max: 1.0
-    default: 0.5
-  - name: num_recs
-    type: selectbox
-    options: [5, 10, 20]
-    default: 10
+```python
+sr.run(recommend={"Ours": ours, "EASE": ease}, items=items, interactions=train)
 ```
 
-### Item metadata — conventions
+## Data
 
-Default columns: `item_id`, `title`, `image_url`, `description`.  
-Remap via `item_columns` or YAML.
+```python
+dataset = sr.load_dataset(
+    items="items.csv",
+    interactions="train_interactions.csv",
+    users="users.csv",
+    test="test_interactions.csv",
+)
+```
 
----
+Default logical columns: `user_id`, `item_id`, `rating`, `timestamp`, `title`, `image_url`, `description`.
 
-## Not yet implemented (post-MVP)
+## Item cards and layouts
 
-- UI file upload (weights/model loaded in Python code)
-- Click history affecting recommendations (state is stored, model does not read it yet)
-- Metrics HR@k, NDCG
-- Polars backend
-- Auth / deployment
+- All layouts use the same clickable poster cards.
+- `rows` and `cards`: one horizontal row with fixed-width poster cards and side scroll.
+- `grid`: wrapped rows of 4 fixed-width poster cards.
+- Selected items stay in place as greyed, disabled cards.
+- Compare mode always uses `rows`.
 
----
+## Metrics
 
-## Examples — what each demonstrates
+```python
+metrics = sr.evaluate(
+    {"Ours": {0: [1, 2, 3]}},
+    test_interactions=test,
+    k=10,
+    all_item_ids=items.item_id,
+)
+sr.table(metrics)
+sr.plot_metric_comparison(metrics)
+```
 
-| Demo | Shows |
+## Examples
+
+| File | Shows |
 |------|-------|
-| **`showcase_demo.py`** | Everything: 3 layouts, slider + selectbox, plot, table, markdown, LaTeX, YAML, session clicks |
-| `minimal_demo.py` | Pattern A — embedding model + alpha tuning |
-| `pickle_demo.py` | Pattern B — joblib + grid layout |
-| `matrix_demo.py` | Pattern C — precomputed scores + cards + YAML |
+| `baseline_comparison_demo.py` | Custom method vs ItemKNN/EASE/popularity/random + metrics |
+| `appendix_demo.py` | Markdown appendix, equations, score diagnostics |
+| `sequence_cf_demo.py` | Timestamped interactions + sequence baseline |
+
+## Not yet implemented
+
+- Polars backend
+- UI file upload for models
+- Optional wrappers for RecPack / Cornac / LensKit
