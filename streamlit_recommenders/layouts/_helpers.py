@@ -2,12 +2,9 @@ from typing import Any
 
 import pandas as pd
 
-DEFAULT_COLUMNS = {
-    "id": "item_id",
-    "title": "title",
-    "image": "image_url",
-    "description": "description",
-}
+from streamlit_recommenders.data import ColumnMap
+
+DEFAULT_COLUMNS = ColumnMap().item_columns()
 
 _PLACEHOLDER = "https://placehold.co/130x195/e5e7eb/6b7280?text=Item"
 
@@ -47,6 +44,25 @@ def items_for_recs(
             }
         )
     return result
+
+
+def visible_entries(
+    items: pd.DataFrame,
+    rec_ids: list,
+    selected_ids: set[str | int],
+    columns: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
+    visible_ids: list = []
+    seen: set[str | int] = set()
+    for item_id in rec_ids:
+        if item_id in seen:
+            continue
+        seen.add(item_id)
+        visible_ids.append(item_id)
+    entries = items_for_recs(items, visible_ids, columns)
+    for entry in entries:
+        entry["selected"] = entry["id"] in selected_ids
+    return entries
 
 
 def _cell(row: pd.Series, col: str, default: Any) -> Any:
