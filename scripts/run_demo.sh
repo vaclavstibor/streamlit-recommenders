@@ -10,6 +10,6 @@ if [[ ! -d .venv ]]; then
   .venv/bin/pip install -e ".[dev]"
 fi
 
-DEMO="${1:-examples/baseline_comparison_demo.py}"
+DEMO="${1:-examples/3_models_comparison_rows.py}"
 shift || true
 exec .venv/bin/streamlit run "$DEMO" "$@"

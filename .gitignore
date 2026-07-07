@@ -3,6 +3,12 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .pytest_cache/
+.cache/
 .DS_Store
 .cursor/
 notes/
+data/*
+!data/static/
+!data/static/img/
+!data/static/img/poster_not_available.png
+!data/README.md
