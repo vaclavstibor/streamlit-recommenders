@@ -29,10 +29,13 @@ from streamlit_recommenders.runtime.keys import param_key
 from streamlit_recommenders.runtime.state import get_selected_ids, get_selections, get_state
 from streamlit_recommenders.viz.plot import (
     plot,
+    plot_overlap_heatmap,
     plot_metric_comparison,
     plot_ranked_items,
     plot_score_distribution,
+    recommendation_overlap_matrix,
 )
+from streamlit_recommenders.viz.dataset_info import dataset_info
 from streamlit_recommenders.viz.table import table
 from streamlit_recommenders.widgets.params import selectbox, slider
 
@@ -71,9 +74,12 @@ __all__ = [
     "cards",
     "render_layout",
     "plot",
+    "plot_overlap_heatmap",
     "plot_metric_comparison",
     "plot_ranked_items",
     "plot_score_distribution",
+    "recommendation_overlap_matrix",
+    "dataset_info",
     "table",
     "markdown",
     "markdown_file",

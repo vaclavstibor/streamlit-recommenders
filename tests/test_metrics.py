@@ -8,6 +8,7 @@ from streamlit_recommenders.metrics import (
     ndcg_at_k,
     recall_at_k,
 )
+from streamlit_recommenders.viz.plot import recommendation_overlap_matrix
 
 
 def test_ranking_metrics_on_small_example():
@@ -36,3 +37,17 @@ def test_evaluate_multiple_models():
 
     assert set(result["model"]) == {"A", "B"}
     assert {"hit_rate", "recall", "ndcg", "mrr", "coverage"} <= set(result["metric"])
+
+
+def test_recommendation_overlap_matrix():
+    overlap = recommendation_overlap_matrix(
+        {
+            "A": [1, 2, 3],
+            "B": [2, 3, 4],
+            "C": [5],
+        }
+    )
+
+    assert overlap.loc["A", "A"] == 1.0
+    assert overlap.loc["A", "B"] == 0.5
+    assert overlap.loc["A", "C"] == 0.0

@@ -86,3 +86,40 @@ def plot_score_distribution(
     fig = px.histogram(df, x=score_col, title=title)
     fig.update_layout(margin=dict(l=20, r=20, t=40, b=20), paper_bgcolor="rgba(0,0,0,0)")
     st.plotly_chart(fig, width="stretch")
+
+
+def recommendation_overlap_matrix(recommendations: dict[str, list]) -> pd.DataFrame:
+    names = list(recommendations)
+    matrix = pd.DataFrame(1.0, index=names, columns=names)
+    for left in names:
+        for right in names:
+            left_set = set(recommendations[left])
+            right_set = set(recommendations[right])
+            union = left_set | right_set
+            matrix.loc[left, right] = len(left_set & right_set) / len(union) if union else 0.0
+    return matrix
+
+
+def plot_overlap_heatmap(
+    overlap: pd.DataFrame,
+    *,
+    title: str = "Recommendation overlap",
+) -> None:
+    if overlap.empty:
+        st.info("No recommendation overlap to plot.")
+        return
+    fig = px.imshow(
+        overlap,
+        text_auto=".2f",
+        zmin=0,
+        zmax=1,
+        color_continuous_scale="Blues",
+        title=title,
+    )
+    fig.update_layout(
+        margin=dict(l=20, r=20, t=50, b=20),
+        xaxis_title="Model",
+        yaxis_title="Model",
+        paper_bgcolor="rgba(0,0,0,0)",
+    )
+    st.plotly_chart(fig, width="stretch")
