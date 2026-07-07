@@ -2,23 +2,8 @@
 
 Lightweight Streamlit library for **interactive recommender demos**. You load data, bring a trained model or implement `get_recommendations()`, and the library handles UI, cache, session state, baseline comparison, and result inspection.
 
+|---|---|---|
 | [Capabilities](docs/CAPABILITIES.md) | [Contracts](docs/CONTRACTS.md) | [Architecture](docs/ARCHITECTURE.md) |
-
-## Research pitch
-
-Recommender papers and experiment frameworks usually share the same spine: `users`, `items`, `interactions`, a train/test split, a model that returns ordered top-k item ids, baseline comparison, metrics, and enough configuration to reproduce the result. RecBole, Cornac, RecPack, LensKit, and Elliot already cover model training and offline experiments well.
-
-`streamlit-recommenders` focuses on the next step: **standardizing the interactive, user-facing result inspection layer**. A researcher can train a model elsewhere, wrap it as `get_recommendations(user_id, k, session_items=...)`, compare it against strong baselines in stacked rows, click items to simulate a new profile, and add metrics, plots, or markdown appendix notes below the recommendations.
-
-Useful references for the positioning:
-
-- RecBole: unified PyTorch training and evaluation framework ([arXiv 2011.01731](https://arxiv.org/abs/2011.01731), [RecBole 2.0](https://arxiv.org/abs/2206.07351))
-- Cornac: multimodal recommender framework for text, images, social data, and interactions ([JMLR 2020](https://www.jmlr.org/papers/volume21/19-805/19-805.pdf))
-- LensKit for Python: PyData toolkit for recommender experiments ([ACM CIKM 2020](https://doi.org/10.1145/3340531.3412778))
-- RecPack: top-N implicit-feedback experimentation toolkit ([ACM RecSys 2022](https://doi.org/10.1145/3523227.3551472))
-- Elliot: rigorous reproducible recommender evaluation framework ([ACM SIGIR 2021](https://doi.org/10.1145/3404835.3463245))
-- Baseline rigor: simple tuned baselines often outperform recent neural approaches ([ACM RecSys 2019](https://doi.org/10.1145/3298689.3347058))
-- User-centric evaluation: offline metrics should be complemented with interactive/user-facing evidence ([ACM TORS](https://dl.acm.org/doi/10.1145/3800587), [ResQue RecSys 2011](https://doi.org/10.1145/2043932.2043962))
 
 ## Quick start
 
