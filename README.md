@@ -100,9 +100,9 @@ Compare mode (`get_recommendations={...}`) always uses `rows`.
 
 Use three baseline families by default:
 
-- **ItemKNN** for classic item-item collaborative filtering ([Deshpande & Karypis, ACM TOIS 2004](https://doi.org/10.1145/963770.963776)).
-- **EASE** for a strong shallow linear implicit-feedback baseline ([Steck, WWW 2019](https://doi.org/10.1145/3308558.3313710)).
-- **Sequential CF / SASRec-style** for timestamped next-item behavior ([Kang & McAuley, ICDM 2018](https://arxiv.org/abs/1808.09781)).
+- **ItemKNN** for classic item-item collaborative filtering (todo ref).
+- **EASE** for a strong shallow linear implicit-feedback baseline (todo ref).
+- **Sequential CF / SASRec-style** for timestamped next-item behavior (todo ref).
 
 The package includes lightweight versions for demos. For full training, use any training code externally and export pure artifacts that match the same `get_recommendations()` contract.
 
