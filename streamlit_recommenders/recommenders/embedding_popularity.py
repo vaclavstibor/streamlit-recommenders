@@ -64,7 +64,7 @@ class EmbeddingPopularityRecommender:
         personal = self._user_vector(user_id, session_items) @ self.item_embeddings.T
         return alpha * personal + (1 - alpha) * self.popularity
 
-    def recommend(
+    def get_recommendations(
         self,
         user_id: str | int,
         k: int,

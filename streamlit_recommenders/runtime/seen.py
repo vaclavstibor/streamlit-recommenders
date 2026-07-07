@@ -36,7 +36,7 @@ def selection_item_ids(selections: list[dict] | None) -> list:
 
 
 def call_with_session_context(
-    recommend: Callable[..., list],
+    get_recommendations: Callable[..., list],
     user_id: str | int,
     k: int,
     session_items: list,
@@ -48,8 +48,8 @@ def call_with_session_context(
         payload["session_items"] = list(session_items)
     if selections is not None:
         payload["selections"] = list(selections)
-    filtered = filter_model_params(recommend, payload)
-    return recommend(user_id, k, **filtered)
+    filtered = filter_model_params(get_recommendations, payload)
+    return get_recommendations(user_id, k, **filtered)
 
 
 def filter_model_params(fn: Callable[..., list], params: dict[str, Any]) -> dict[str, Any]:

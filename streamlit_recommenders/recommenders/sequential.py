@@ -34,7 +34,7 @@ class SequentialCFRecommender:
     ) -> SequentialCFRecommender:
         return cls(interactions, items, timestamp_col)
 
-    def recommend(
+    def get_recommendations(
         self,
         user_id: str | int,
         k: int,

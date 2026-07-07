@@ -16,7 +16,7 @@ class PopularityRecommender:
     def from_interactions(cls, interactions: pd.DataFrame) -> PopularityRecommender:
         return cls(interactions)
 
-    def recommend(
+    def get_recommendations(
         self,
         user_id: str | int,
         k: int,

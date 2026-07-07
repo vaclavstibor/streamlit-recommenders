@@ -20,7 +20,7 @@ class RandomRecommender:
         self.item_ids = item_ids or list(range(n_items or 0))
         self.seed = seed
 
-    def recommend(
+    def get_recommendations(
         self,
         user_id: str | int,
         k: int,

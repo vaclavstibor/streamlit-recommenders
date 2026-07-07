@@ -3,8 +3,12 @@ from collections.abc import Callable
 import streamlit as st
 
 from streamlit_recommenders.layouts._helpers import visible_entries
-from streamlit_recommenders.layouts.item_card import DEFAULT_GRID_COLS, render_horizontal_posters
-from streamlit_recommenders.runtime.keys import recommend_button_key
+from streamlit_recommenders.layouts.item_card import (
+    DEFAULT_GRID_COLS,
+    render_grid_posters,
+    render_horizontal_posters,
+)
+from streamlit_recommenders.runtime.keys import get_recommendations_button_key
 
 
 def render_item_carousel(
@@ -20,17 +24,14 @@ def render_item_carousel(
         return
 
     if layout == "grid":
-        n_cols = max(1, min(n_cols, len(entries)))
-        for start in range(0, len(entries), n_cols):
-            render_horizontal_posters(
-                entries[start : start + n_cols],
-                section,
-                all_sections,
-                rank_offset=start,
-            )
+        render_grid_posters(entries, section, all_sections, n_cols=n_cols)
         return
 
-    # rows and cards: one horizontally scrollable line
+    if layout == "cards":
+        render_grid_posters(entries, section, all_sections, n_cols=max(n_cols, 5))
+        return
+
+    # rows: one horizontally scrollable line for model comparison
     render_horizontal_posters(entries, section, all_sections)
 
 
@@ -44,7 +45,7 @@ def render_recommender_section(
     columns: dict[str, str] | None = None,
     selected_ids: set[str | int] | None = None,
     all_sections: list[str] | None = None,
-    on_recommend: Callable[[], None] | None = None,
+    on_get_recommendations: Callable[[], None] | None = None,
     n_cols: int = DEFAULT_GRID_COLS,
 ) -> None:
     selected = selected_ids or set()
@@ -56,13 +57,15 @@ def render_recommender_section(
         if not entries:
             st.info("No recommendations to display.")
         else:
+            if layout in {"grid", "cards"}:
+                st.caption("Click posters to add items to the session profile.")
             render_item_carousel(entries, section, sections, layout, n_cols=n_cols)
 
-        if on_recommend is not None and st.button(
-            "Recommend",
-            key=recommend_button_key(section),
-            use_container_width=True,
-            type="primary",
-        ):
-            on_recommend()
-            st.rerun()
+        if on_get_recommendations is not None:
+            st.button(
+                "Get Recommendations",
+                key=get_recommendations_button_key(section),
+                use_container_width=True,
+                type="primary",
+                on_click=on_get_recommendations,
+            )

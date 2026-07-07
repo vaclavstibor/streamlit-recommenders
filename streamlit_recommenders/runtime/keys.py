@@ -27,5 +27,5 @@ def user_select_key() -> str:
     return f"{NS}.user"
 
 
-def recommend_button_key(section: str) -> str:
-    return f"{NS}.recommend.{section_id(section)}"
+def get_recommendations_button_key(section: str) -> str:
+    return f"{NS}.get_recommendations.{section_id(section)}"

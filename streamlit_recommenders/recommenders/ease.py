@@ -36,7 +36,7 @@ class EASERecommender:
     ) -> EASERecommender:
         return cls(interactions, items, l2)
 
-    def recommend(
+    def get_recommendations(
         self,
         user_id: str | int,
         k: int,

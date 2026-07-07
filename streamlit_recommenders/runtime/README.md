@@ -7,7 +7,7 @@ Not part of the public API. Demo scripts use `sr.*` only.
 | What | Where |
 |------|-------|
 | CSV load | `@st.cache_data` in `cache.load_csv` |
-| `recommend()` | `@st.cache_data` keyed by user, k, params, session_items, selections |
+| `get_recommendations()` | `@st.cache_data` keyed by user, k, params, session_items, selections |
 
 ## Session state
 
@@ -24,6 +24,6 @@ Not part of the public API. Demo scripts use `sr.*` only.
 1. Resolve sidebar params and user
 2. Load or reuse `displayed_recs` per section
 3. Render profile strips + item carousel
-4. **Recommend** button recomputes and stores new ids, then `st.rerun()`
+4. **Get Recommendations** button recomputes and stores new ids, then `st.rerun()`
 
 Card click → `record_selection()` → immediate rerun. The selected item stays in the carousel as a disabled, greyed card and appears in the profile strip.

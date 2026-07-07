@@ -1,7 +1,7 @@
 from streamlit_recommenders.runtime.keys import (
+    get_recommendations_button_key,
     item_action_key,
     param_key,
-    recommend_button_key,
     section_id,
     user_select_key,
 )
@@ -24,5 +24,8 @@ def test_param_key():
     assert param_key("alpha") == "streamlit_recommenders.param.alpha"
 
 
-def test_recommend_button_key():
-    assert recommend_button_key("Our method") == "streamlit_recommenders.recommend.our_method"
+def test_get_recommendations_button_key():
+    assert (
+        get_recommendations_button_key("Our method")
+        == "streamlit_recommenders.get_recommendations.our_method"
+    )

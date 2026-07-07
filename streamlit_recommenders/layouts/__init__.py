@@ -21,7 +21,7 @@ def render_layout(
     columns: dict[str, str] | None = None,
     selected_ids: set[str | int] | None = None,
     all_sections: list[str] | None = None,
-    on_recommend: Callable[[], None] | None = None,
+    on_get_recommendations: Callable[[], None] | None = None,
     n_cols: int = 4,
 ) -> None:
     render_recommender_section(
@@ -33,6 +33,6 @@ def render_layout(
         columns=columns,
         selected_ids=selected_ids,
         all_sections=all_sections,
-        on_recommend=on_recommend,
+        on_get_recommendations=on_get_recommendations,
         n_cols=n_cols,
     )

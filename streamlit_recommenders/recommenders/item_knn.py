@@ -37,7 +37,7 @@ class ItemKNNRecommender:
     ) -> ItemKNNRecommender:
         return cls(interactions, items, k_neighbors)
 
-    def recommend(
+    def get_recommendations(
         self,
         user_id: str | int,
         k: int,
