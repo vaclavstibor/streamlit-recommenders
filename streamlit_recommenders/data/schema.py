@@ -9,7 +9,11 @@ from streamlit_recommenders.runtime.cache import load_csv
 
 @dataclass(frozen=True)
 class ColumnMap:
-    """Logical column names used by the library."""
+    """Logical column names used by the library.
+
+    Only item_id is required for item metadata. Display fields such as title,
+    image, and description are optional and fall back in the UI.
+    """
 
     item_id: str = "item_id"
     user_id: str = "user_id"
@@ -50,9 +54,13 @@ def load_items(path: str, id_col: str = "item_id") -> pd.DataFrame:
     return df
 
 
-def load_interactions(path: str) -> pd.DataFrame:
+def load_interactions(
+    path: str,
+    user_col: str = "user_id",
+    item_col: str = "item_id",
+) -> pd.DataFrame:
     df = load_csv(path)
-    require_columns(df, ["user_id", "item_id"], "interactions")
+    require_columns(df, [user_col, item_col], "interactions")
     return df
 
 
@@ -74,10 +82,12 @@ def load_dataset(
     cols = columns or ColumnMap()
     dataset = Dataset(
         items=load_items(items, cols.item_id),
-        interactions=load_interactions(interactions) if interactions else None,
+        interactions=load_interactions(interactions, cols.user_id, cols.item_id)
+        if interactions
+        else None,
         users=load_users(users, cols.user_id) if users else None,
-        train=load_interactions(train) if train else None,
-        test=load_interactions(test) if test else None,
+        train=load_interactions(train, cols.user_id, cols.item_id) if train else None,
+        test=load_interactions(test, cols.user_id, cols.item_id) if test else None,
         columns=cols,
     )
     return dataset.validate()

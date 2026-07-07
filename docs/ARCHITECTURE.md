@@ -6,9 +6,11 @@ Module-level view of how a demo flows through the public API, runtime state, lay
 flowchart TB
   subgraph demo["Your demo.py"]
     data["items DataFrame\ninteractions DataFrame"]
-    rec["recommend(user, k, **params)\nfunction · class · dict of models"]
-    app_call["sr.run(recommend, items, params, body)"]
+    external["optional external training\nRecBole · Cornac · RecPack · LensKit"]
+    rec["get_recommendations(user, k, **params)\nfunction · class · dict of models"]
+    app_call["sr.run(get_recommendations, items, params, body)"]
     data --> app_call
+    external --> rec
     rec --> app_call
   end
 
@@ -22,17 +24,17 @@ flowchart TB
 
   subgraph runner["runner.py: orchestration"]
     sidebar["sidebar: user picker + params"]
-    sections["per recommender: cache -> carousel -> Recommend"]
+    sections["per recommender: cache -> carousel -> Get Recommendations"]
     body_hook["optional body() callback"]
   end
 
   subgraph models["models/"]
-    adapter["adapter.py: normalize fn / .recommend()"]
+    adapter["adapter.py: normalize fn / .get_recommendations()"]
     protocol["RecommenderProtocol"]
   end
 
   subgraph runtime["runtime/: internal"]
-    cache["cache.py: cache_data on recommend()"]
+    cache["cache.py: cache_data on get_recommendations()"]
     state["state.py: selected_ids, displayed_recs"]
     seen["seen.py: effective_seen(), session user"]
     compare["compare.py: dict -> labeled rows"]
@@ -40,7 +42,7 @@ flowchart TB
 
   subgraph layouts["layouts/"]
     card["item_card.py: poster button"]
-    section["section.py: carousel + Recommend btn"]
+    section["section.py: carousel + Get Recommendations btn"]
     modes["rows · grid · cards"]
   end
 
@@ -52,7 +54,7 @@ flowchart TB
   subgraph ui["Streamlit page"]
     strips["Past interactions · Selected this session"]
     carousel["Clickable poster cards"]
-    recommend_btn["Recommend per row"]
+    get_recommendations_btn["Get Recommendations"]
     extra["plots · tables · markdown"]
   end
 
@@ -73,10 +75,26 @@ flowchart TB
   sidebar --> profile
   section --> carousel
   profile --> strips
-  section --> recommend_btn
+  section --> get_recommendations_btn
   body_hook --> viz_fn
   viz_fn --> extra
   models_fn --> adapter
 ```
 
-**Flow:** sidebar params + user -> cached `recommend()` -> item ids -> poster carousel. Card click updates session state; **Recommend** recomputes that row.
+**Flow:** sidebar params + user -> cached `get_recommendations()` adapter -> item ids -> poster carousel. Card click updates session state; **Get Recommendations** refreshes compared rows.
+
+## Boundary
+
+The library owns the interactive inspection layer, not the full model-training pipeline. Training frameworks standardize offline experimentation; `streamlit-recommenders` standardizes how trained recommenders are displayed, compared, and probed with session feedback.
+
+```mermaid
+flowchart LR
+  dataPrep["Data prep"] --> train["External training framework"]
+  train --> artifact["Trained model or scores"]
+  artifact --> adapter["Thin get_recommendations adapter"]
+  adapter --> demo["sr.run compare rows"]
+  demo --> feedback["Session clicks"]
+  feedback --> adapter
+```
+
+Core baselines stay lightweight and citeable: `ItemKNNRecommender`, `EASERecommender`, and `SequentialCFRecommender`. Heavy frameworks such as RecBole, Cornac, RecPack, LensKit, and Elliot should be optional example integrations rather than required dependencies.

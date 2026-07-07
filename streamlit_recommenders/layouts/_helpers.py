@@ -1,4 +1,5 @@
 from typing import Any
+from pathlib import Path
 
 import pandas as pd
 
@@ -6,11 +7,18 @@ from streamlit_recommenders.data import ColumnMap
 
 DEFAULT_COLUMNS = ColumnMap().item_columns()
 
-_PLACEHOLDER = "https://placehold.co/130x195/e5e7eb/6b7280?text=Item"
+_PLACEHOLDER_URL = "https://placehold.co/130x195/e5e7eb/6b7280?text=Item"
+_PLACEHOLDER_FILE = (
+    Path(__file__).resolve().parents[2]
+    / "data"
+    / "static"
+    / "img"
+    / "poster_not_available.png"
+)
 
 
 def item_placeholder() -> str:
-    return _PLACEHOLDER
+    return str(_PLACEHOLDER_FILE) if _PLACEHOLDER_FILE.exists() else _PLACEHOLDER_URL
 
 
 def resolve_columns(columns: dict[str, str] | None) -> dict[str, str]:
@@ -39,7 +47,7 @@ def items_for_recs(
             {
                 "id": item_id,
                 "title": _cell(row, cols["title"], str(item_id)),
-                "image": _cell(row, cols["image"], None),
+                "image": _cell(row, cols["image"], item_placeholder()),
                 "description": _cell(row, cols["description"], ""),
             }
         )
@@ -70,5 +78,7 @@ def _cell(row: pd.Series, col: str, default: Any) -> Any:
         return default
     value = row[col]
     if pd.isna(value):
+        return default
+    if isinstance(value, str) and not value.strip():
         return default
     return value

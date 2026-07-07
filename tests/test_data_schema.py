@@ -33,3 +33,15 @@ def test_column_map_exports_layout_mapping():
         "image": "poster",
         "description": "description",
     }
+
+
+def test_dataset_validation_uses_column_map_for_interactions():
+    columns = ColumnMap(item_id="movie_id", user_id="viewer_id")
+    dataset = Dataset(
+        items=pd.DataFrame({"movie_id": [1, 2], "title": ["A", "B"]}),
+        interactions=pd.DataFrame({"viewer_id": [10], "movie_id": [1]}),
+        users=pd.DataFrame({"viewer_id": [10]}),
+        columns=columns,
+    )
+
+    validate_dataset(dataset)

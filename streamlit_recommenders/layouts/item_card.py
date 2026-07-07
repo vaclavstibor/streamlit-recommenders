@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import base64
 import html
+import mimetypes
+from functools import lru_cache
+from pathlib import Path
 
 import streamlit as st
 
@@ -14,7 +18,23 @@ PROFILE_KEY_PREFIX = "streamlit_recommenders-profile-"
 
 
 def _css_url(url: str) -> str:
-    return html.escape(url, quote=True).replace("'", "%27")
+    return html.escape(_image_css_url(str(url)), quote=True).replace("'", "%27")
+
+
+@lru_cache(maxsize=256)
+def _image_css_url(url: str) -> str:
+    if not url.strip():
+        return _image_css_url(item_placeholder())
+    if url.startswith(("http://", "https://", "data:")):
+        return url
+
+    path = Path(url)
+    if path.is_file():
+        mime = mimetypes.guess_type(path.name)[0] or "image/jpeg"
+        encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+        return f"data:{mime};base64,{encoded}"
+
+    return _image_css_url(item_placeholder())
 
 
 def _css_string(text: str) -> str:
@@ -65,7 +85,7 @@ div[data-testid="stColumn"]:has({profile}) div[data-testid="stVerticalBlock"] {{
 
 def _ensure_rec_card_styles() -> None:
     strip = _strip_column_selector()
-    st.markdown(
+    _inject_html(
         f"""
 <style>
 div[class*="st-key-streamlit_recommenders-recommend"] {{
@@ -79,8 +99,8 @@ div[class*="st-key-streamlit_recommenders-recommend"] {{
     overflow-y: hidden !important;
     width: 100% !important;
     max-width: 100% !important;
-    min-height: calc({CARD_WIDTH_PX}px * 1.5 + 14px) !important;
-    padding: 0 2px 12px;
+    min-height: calc({CARD_WIDTH_PX}px * 1.5 + 26px) !important;
+    padding: 12px 2px 12px;
     scrollbar-width: thin;
 }}
 {_strip_column_rule()}
@@ -128,24 +148,31 @@ div[class*="st-key-{PROFILE_KEY_PREFIX}"]:hover .sr-display-poster::after {{
 }}
 </style>
         """,
-        unsafe_allow_html=True,
     )
 
 
 def _button_card_css(entry: dict, card_id: str) -> str:
     kp = card_id
     image = _css_url(entry["image"] or item_placeholder())
-    title = _css_string(entry["title"])
     selected = bool(entry.get("selected"))
     key_sel = f'div[class*="st-key-{kp}"]'
     selected_rules = ""
     if selected:
         selected_rules = f"""
 {key_sel} button {{
-    filter: grayscale(0.85);
-    opacity: 0.62;
-    border-color: #94a3b8 !important;
+    opacity: 1 !important;
+    border-color: #2563eb !important;
+    box-shadow: inset 0 0 0 2px rgba(37, 99, 235, 0.85);
     cursor: default;
+}}
+{key_sel} button::before {{
+    opacity: 1;
+    background: linear-gradient(
+        180deg,
+        rgba(9, 15, 28, 0.18) 0%,
+        rgba(9, 15, 28, 0.34) 38%,
+        rgba(9, 15, 28, 0.94) 100%
+    );
 }}
 {key_sel} button::after {{
     content: "Selected";
@@ -154,7 +181,7 @@ def _button_card_css(entry: dict, card_id: str) -> str:
     right: 8px;
     padding: 4px 8px;
     border-radius: 999px;
-    background: #475569;
+    background: #2563eb;
     color: #fff;
     font-size: 0.62rem;
     font-weight: 700;
@@ -165,9 +192,9 @@ def _button_card_css(entry: dict, card_id: str) -> str:
 {key_sel} button:hover,
 {key_sel} button:focus-visible {{
     transform: none;
-    box-shadow: none;
+    box-shadow: inset 0 0 0 2px rgba(37, 99, 235, 0.85);
 }}
-{key_sel} button::before {{
+{key_sel} .sr-card-copy {{
     opacity: 1;
     transform: translateY(0);
 }}
@@ -175,11 +202,13 @@ def _button_card_css(entry: dict, card_id: str) -> str:
     return f"""
 {key_sel} {{
     width: 100%;
+    position: relative;
 }}
 {key_sel} button {{
     aspect-ratio: 2 / 3;
     width: 100% !important;
-    min-height: 0 !important;
+    min-height: calc({CARD_WIDTH_PX}px * 1.5) !important;
+    height: auto !important;
     padding: 0 !important;
     border: 1px solid #d6dde8 !important;
     border-radius: 8px !important;
@@ -202,30 +231,55 @@ def _button_card_css(entry: dict, card_id: str) -> str:
     line-height: 0 !important;
 }}
 {key_sel} button::before {{
-    content: "{title}";
+    content: "";
     position: absolute;
     left: 0;
     right: 0;
+    top: 0;
     bottom: 0;
-    padding: 10px 10px 12px;
-    color: #fff;
-    font-size: clamp(0.62rem, 1.1vw, 0.78rem);
-    font-weight: 700;
-    line-height: 1.35;
-    text-align: left;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     opacity: 0;
-    transform: translateY(8px);
-    transition: opacity 0.18s ease, transform 0.18s ease;
+    transition: opacity 0.18s ease;
     background: linear-gradient(
         180deg,
         rgba(9, 15, 28, 0) 0%,
-        rgba(9, 15, 28, 0.82) 45%,
+        rgba(9, 15, 28, 0.58) 48%,
         rgba(9, 15, 28, 0.96) 100%
     );
     pointer-events: none;
+}}
+{key_sel} .sr-card-copy {{
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    color: #fff;
+    text-align: left;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    pointer-events: none;
+    z-index: 2;
+}}
+{key_sel} .sr-card-title {{
+    display: block;
+    font-size: clamp(0.66rem, 1.1vw, 0.8rem);
+    font-weight: 800;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}}
+{key_sel} .sr-card-desc {{
+    display: block;
+    margin-top: 3px;
+    font-size: clamp(0.56rem, 0.95vw, 0.68rem);
+    font-weight: 500;
+    line-height: 1.25;
+    opacity: 0.9;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }}
 {key_sel} button:hover,
 {key_sel} button:focus-visible {{
@@ -235,6 +289,10 @@ def _button_card_css(entry: dict, card_id: str) -> str:
 }}
 {key_sel} button:hover::before,
 {key_sel} button:focus-visible::before {{
+    opacity: 1;
+}}
+{key_sel}:hover .sr-card-copy,
+{key_sel}:focus-within .sr-card-copy {{
     opacity: 1;
     transform: translateY(0);
 }}
@@ -275,7 +333,14 @@ def inject_card_styles(
         )
         for index, entry in enumerate(entries)
     ]
-    st.markdown(f"<style>{''.join(rules)}</style>", unsafe_allow_html=True)
+    _inject_html(f"<style>{''.join(rules)}</style>")
+
+
+def _inject_html(html: str) -> None:
+    if hasattr(st, "html"):
+        st.html(html)
+    else:
+        st.markdown(html, unsafe_allow_html=True)
 
 
 def render_display_poster(entry: dict, key: str) -> None:
@@ -313,6 +378,37 @@ def render_horizontal_posters(
                 render_display_poster(entry, profile_poster_key(section, entry["id"], index))
 
 
+def render_grid_posters(
+    entries: list[dict],
+    section: str,
+    all_sections: list[str],
+    *,
+    n_cols: int = DEFAULT_GRID_COLS,
+    selectable: bool = True,
+) -> None:
+    """Wrapped poster gallery for browsing-style layouts."""
+    if not entries:
+        return
+    n_cols = max(1, n_cols)
+    _ensure_rec_card_styles()
+    if selectable:
+        inject_card_styles(entries, section)
+
+    for start in range(0, len(entries), n_cols):
+        row_entries = entries[start : start + n_cols]
+        cols = st.columns(n_cols, gap="small")
+        for index, col in enumerate(cols):
+            if index >= len(row_entries):
+                continue
+            entry = row_entries[index]
+            with col:
+                rank = start + index
+                if selectable:
+                    render_selectable_card(entry, rank, section, all_sections)
+                else:
+                    render_display_poster(entry, profile_poster_key(section, entry["id"], rank))
+
+
 def render_selectable_card(
     entry: dict,
     rank: int,
@@ -321,14 +417,26 @@ def render_selectable_card(
 ) -> None:
     """Poster card rendered as a single styled button."""
     key = item_action_key(section, entry["id"], rank)
+    title = str(entry["title"])
     description = str(entry.get("description") or entry["title"])
-    if st.button(
-        "\u200b",
-        key=key,
-        help=description,
-        use_container_width=True,
-        type="secondary",
-        disabled=bool(entry.get("selected")),
-    ):
-        record_selection(section, entry["id"], rank, all_sections)
-        st.rerun()
+    tooltip = f"{title}\n\n{description}" if description != title else title
+    with st.container(key=key):
+        st.button(
+            "\u200b",
+            key=f"{key}.button",
+            help=tooltip,
+            use_container_width=True,
+            type="secondary",
+            disabled=bool(entry.get("selected")),
+            on_click=record_selection,
+            args=(section, entry["id"], rank, all_sections),
+        )
+        st.markdown(
+            (
+                '<div class="sr-card-copy">'
+                f'<span class="sr-card-title">{html.escape(str(entry["title"]))}</span>'
+                f'<span class="sr-card-desc">{html.escape(description)}</span>'
+                "</div>"
+            ),
+            unsafe_allow_html=True,
+        )
