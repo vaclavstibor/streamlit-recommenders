@@ -2,8 +2,8 @@
 
 Lightweight Streamlit library for **interactive recommender demos**. You load data, bring a trained model or implement `get_recommendations()`, and the library handles UI, cache, session state, baseline comparison, and result inspection.
 
-|---|---|---|
 | [Capabilities](docs/CAPABILITIES.md) | [Contracts](docs/CONTRACTS.md) | [Architecture](docs/ARCHITECTURE.md) |
+|---|---|---|
 
 ## Quick start
 
