@@ -9,9 +9,9 @@ Lightweight Streamlit library for **interactive recommender demos**. You load da
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-.venv/bin/python examples/train_baseline_artifacts.py --data data/ml-32m-filtered
-./scripts/run_demo.sh                               # 3 models comparison demo
+pip install -e ".[dev,training]"
+.venv/bin/python examples/train_baseline_artifacts.py --data data/ml-32m-filtered # Additional training script for baseline models and exporting artifacts
+.venv/bin/streamlit run examples/3_models_comparison_rows.py # 3 models comparison (in rows layout) library demonstration
 ```
 
 ## Minimal demo
