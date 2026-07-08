@@ -10,8 +10,9 @@ Lightweight Streamlit library for **interactive recommender demos**. You load da
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev,training]"
-.venv/bin/python examples/train_baseline_artifacts.py --data data/ml-32m-filtered # Additional training script for baseline models and exporting artifacts
-.venv/bin/streamlit run examples/3_models_comparison_rows.py # 3 models comparison (in rows layout) library demonstration
+python scripts/preprocess_movielens.py --dataset ml-latest-small # or ml-latest, ml-25m, ml-32m; see data/README.md for TMDB posters
+.venv/bin/python examples/train_baseline_artifacts.py --data data/ml-latest-small # Additional training script for baseline models and exporting artifacts
+SR_DATA_DIR=data/ml-latest-small .venv/bin/streamlit run examples/3_models_comparison_rows.py # 3 models comparison (in rows layout) library demonstration
 ```
 
 ## Minimal demo
@@ -83,7 +84,7 @@ Compare mode (`get_recommendations={...}`) always uses `rows`.
 
 ## Session UX
 
-1. Click item cards to add them to **Selected this session**
+1. Click item cards to add them to **Selected this session**; click selected cards again to unselect
 2. Click **Get Recommendations** to refresh all compared models with current selections
 3. Read state in `body()`: `sr.selected_items()`, `sr.current_user()`, `sr.param_value("alpha")`
 
@@ -100,9 +101,9 @@ Compare mode (`get_recommendations={...}`) always uses `rows`.
 
 Use three baseline families by default:
 
-- **ItemKNN** for classic item-item collaborative filtering (todo ref).
-- **EASE** for a strong shallow linear implicit-feedback baseline (todo ref).
-- **Sequential CF / SASRec-style** for timestamped next-item behavior (todo ref).
+- **ItemKNN** for classic item-item collaborative filtering.
+- **EASE** for a strong shallow linear implicit-feedback baseline.
+- **Sequential CF / SASRec-style** for timestamped next-item behavior.
 
 The package includes lightweight versions for demos. For full training, use any training code externally and export pure artifacts that match the same `get_recommendations()` contract.
 

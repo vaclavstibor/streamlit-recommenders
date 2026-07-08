@@ -5,9 +5,10 @@ Practical API overview. Formal contracts: [CONTRACTS.md](CONTRACTS.md).
 ## Install & run
 
 ```bash
-pip install -e ".[dev]"
-.venv/bin/python examples/train_baseline_artifacts.py --data data/ml-32m-filtered
-./scripts/run_demo.sh
+pip install -e ".[dev,training]"
+python scripts/preprocess_movielens.py --dataset ml-latest-small # or ml-latest, ml-25m, ml-32m; see data/README.md for TMDB posters
+.venv/bin/python examples/train_baseline_artifacts.py --data data/ml-latest-small # Additional training script for baseline models and exporting artifacts
+SR_DATA_DIR=data/ml-latest-small .venv/bin/streamlit run examples/3_models_comparison_rows.py # 3 models comparison (in rows layout) library demonstration
 ```
 
 Requires **Python ≥3.10** and the project venv.
@@ -113,7 +114,7 @@ Recommended baseline story:
 - All layouts use the same clickable poster cards.
 - `rows`: one horizontal row with fixed-width poster cards and side scroll.
 - `cards` and `grid`: wrapped poster galleries for browsing/catalog-style display.
-- Selected items stay in place as greyed, disabled cards.
+- Selected items stay in place as greyed cards; click them again to unselect.
 - Compare mode always uses `rows`.
 
 ## Metrics
