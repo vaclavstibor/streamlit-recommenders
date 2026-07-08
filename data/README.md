@@ -1,8 +1,17 @@
 # Local data
 
-*todo: Add preprocessing (including download, posters adding, etc.) one command script, due to rights issues.*
-
 This directory is for local datasets and generated artifacts that should not be committed.
+
+## MovieLens preprocessing
+
+Use the preprocessing script to download a MovieLens ZIP, convert it to the local schema, and optionally fetch TMDB metadata/posters:
+
+```bash
+python scripts/preprocess_movielens.py --dataset ml-32m
+TMDB_API_KEY=... python scripts/preprocess_movielens.py --dataset ml-32m --with-tmdb --download-posters --force
+```
+
+Supported datasets are `ml-latest-small`, `ml-latest`, `ml-25m`, and `ml-32m`. The script writes `items.csv`, `interactions.csv`, raw source CSVs, and optional poster files under `data/<dataset>/`. Poster downloads require `TMDB_API_KEY` or `TMDB_BEARER_TOKEN`; use `--poster-limit 1000` for a smaller first run.
 
 Recommended layout for any local recommender dataset:
 
@@ -31,4 +40,4 @@ Minimum schemas:
 
 Missing `image_url` values are supported. The UI renders a placeholder poster for those items.
 
-`examples/train_baseline_artifacts.py` can create `items.csv`, `interactions.csv`, `train_interactions.csv`, `test_interactions.csv`, and the `artifacts/` folder from either the standard schema or raw MovieLens-style `movies.csv` / `ratings.csv`.
+`examples/train_baseline_artifacts.py` can create `train_interactions.csv`, `test_interactions.csv`, and the `artifacts/` folder from the generated standard schema.
