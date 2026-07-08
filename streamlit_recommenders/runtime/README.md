@@ -26,4 +26,4 @@ Not part of the public API. Demo scripts use `sr.*` only.
 3. Render profile strips + item carousel
 4. **Get Recommendations** button recomputes and stores new ids, then `st.rerun()`
 
-Card click → `record_selection()` → immediate rerun. The selected item stays in the carousel as a disabled, greyed card and appears in the profile strip.
+Card click → `record_selection()` → immediate rerun. The selected item stays in the carousel as a greyed card, appears in the profile strip, and can be clicked again to unselect.

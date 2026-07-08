@@ -163,7 +163,7 @@ def _button_card_css(entry: dict, card_id: str) -> str:
     opacity: 1 !important;
     border-color: #2563eb !important;
     box-shadow: inset 0 0 0 2px rgba(37, 99, 235, 0.85);
-    cursor: default;
+    cursor: pointer;
 }}
 {key_sel} button::before {{
     opacity: 1;
@@ -427,7 +427,6 @@ def render_selectable_card(
             help=tooltip,
             use_container_width=True,
             type="secondary",
-            disabled=bool(entry.get("selected")),
             on_click=record_selection,
             args=(section, entry["id"], rank, all_sections),
         )

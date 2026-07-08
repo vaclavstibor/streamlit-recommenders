@@ -121,7 +121,7 @@ All layouts render ids through the same poster-button card.
 | `grid` | Wrapped poster grid for catalog-style browsing |
 | compare | Forced to `rows` |
 
-Widget keys include rank: `streamlit_recommenders.item.{section}.{id}.r{rank}`. Duplicate ids are deduplicated before display; selected ids remain visible as disabled cards.
+Widget keys include rank: `streamlit_recommenders.item.{section}.{id}.r{rank}`. Duplicate ids are deduplicated before display; selected ids remain visible as greyed cards that can be clicked again to unselect.
 
 ## Session flow
 

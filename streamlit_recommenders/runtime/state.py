@@ -71,6 +71,12 @@ def record_selection(
 ) -> None:
     state = get_state()
     if item_id in state["selected_ids"]:
+        state["selected_ids"] = [selected_id for selected_id in state["selected_ids"] if selected_id != item_id]
+        for section in all_sections:
+            selections = state["selections"].get(section, [])
+            state["selections"][section] = [
+                selection for selection in selections if selection.get("item_id") != item_id
+            ]
         return
     state["selected_ids"].append(item_id)
     for section in all_sections:
