@@ -10,8 +10,11 @@ def init_session_state() -> None:
         st.session_state[STATE_KEY] = {
             "current_user": None,
             "selected_ids": [],
+            "disliked_ids": [],
             "selections": {},
             "displayed_recs": {},
+            "swipe_counts": {},
+            "swipe_skipped": {},
             "run_context_hash": None,
         }
 
@@ -34,12 +37,17 @@ def sync_run_context(user_id: str | int, k: int, params: dict) -> None:
     if state.get("run_context_hash") != ctx_hash:
         state["run_context_hash"] = ctx_hash
         state["displayed_recs"] = {}
+        state["swipe_counts"] = {}
+        state["swipe_skipped"] = {}
 
 
 def _reset_session(state: dict) -> None:
     state["selected_ids"] = []
+    state["disliked_ids"] = []
     state["selections"] = {}
     state["displayed_recs"] = {}
+    state["swipe_counts"] = {}
+    state["swipe_skipped"] = {}
 
 
 def get_selected_ids() -> list:
@@ -87,3 +95,70 @@ def record_selection(
                 "source": source_section,
             }
         )
+
+
+def get_disliked_ids() -> list:
+    return list(get_state().get("disliked_ids", []))
+
+
+def record_swipe(
+    source_section: str,
+    item_id: str | int,
+    sentiment: str,
+    all_sections: list[str],
+) -> None:
+    """Record a like or dislike swipe. Likes mirror a card click (positive profile)."""
+    if sentiment == "like":
+        record_selection(source_section, item_id, 0, all_sections)
+        return
+
+    state = get_state()
+    disliked = state.setdefault("disliked_ids", [])
+    if item_id in disliked:
+        return
+    disliked.append(item_id)
+    for section in all_sections:
+        state["selections"].setdefault(section, []).append(
+            {
+                "item_id": item_id,
+                "rank": None,
+                "source": source_section,
+                "sentiment": "dislike",
+            }
+        )
+
+
+def record_skip(section: str, item_id: str | int) -> None:
+    state = get_state()
+    skipped = state.setdefault("swipe_skipped", {}).setdefault(section, [])
+    if item_id not in skipped:
+        skipped.append(item_id)
+
+
+def get_swipe_skipped(section: str) -> list:
+    return list(get_state().get("swipe_skipped", {}).get(section, []))
+
+
+def get_swipe_seen_ids(section: str) -> list:
+    """All items already shown in a swipe deck during the current session."""
+    state = get_state()
+    return list(
+        dict.fromkeys(
+            [
+                *state.get("selected_ids", []),
+                *state.get("disliked_ids", []),
+                *state.get("swipe_skipped", {}).get(section, []),
+            ]
+        )
+    )
+
+
+def bump_swipe_count(section: str) -> int:
+    counts = get_state().setdefault("swipe_counts", {})
+    counts[section] = counts.get(section, 0) + 1
+    return counts[section]
+
+
+def reset_swipe_count(section: str) -> None:
+    state = get_state()
+    state.setdefault("swipe_counts", {})[section] = 0

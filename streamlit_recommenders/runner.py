@@ -19,6 +19,7 @@ from streamlit_recommenders.runtime.state import (
     get_displayed_recs,
     get_selected_ids,
     get_selections,
+    get_swipe_seen_ids,
     init_session_state,
     set_current_user,
     set_displayed_recs,
@@ -59,6 +60,7 @@ def run(
     intro: Callable[[], None] | None = None,
     body: Callable[[], None] | None = None,
     session_user: bool = True,
+    swipes_per_refresh: int = 5,
 ) -> None:
     """Orchestrate the full Streamlit demo app."""
     st.set_page_config(page_title=title, layout="wide")
@@ -95,8 +97,16 @@ def run(
     )
     k = int(resolved.pop("num_recs", resolved.pop("k", 20)))
     layout = resolved.pop("layout", layout)
+    swipes_per_refresh = int(resolved.pop("swipes_per_refresh", swipes_per_refresh))
     row_layout = "rows" if compare else layout
+    if row_layout == "cards":
+        k = max(k, swipes_per_refresh + 1)
     sync_run_context(user_id, k, {"global": resolved, "models": model_params})
+
+    if row_layout == "cards":
+        st.sidebar.caption(
+            f"Swipe to like or dislike. New recommendations after {swipes_per_refresh} swipes."
+        )
 
     selected_ids = get_selected_ids()
     selected_set = set(selected_ids)
@@ -126,6 +136,7 @@ def run(
                     params_for_label,
                     session_items=fresh_selected_ids,
                     selections=get_selections(label),
+                    excluded_item_ids=get_swipe_seen_ids(label) if row_layout == "cards" else None,
                 ),
             )
 
@@ -150,6 +161,7 @@ def run(
                 params_for_label,
                 session_items=selected_ids,
                 selections=section_selections,
+                excluded_item_ids=get_swipe_seen_ids(label) if row_layout == "cards" else None,
             )
             set_displayed_recs(label, rec_ids)
 
@@ -169,6 +181,7 @@ def run(
                     params_for_label,
                     session_items=fresh_selected_ids,
                     selections=fresh_selections,
+                    excluded_item_ids=get_swipe_seen_ids(label) if row_layout == "cards" else None,
                 ),
             )
 
@@ -182,6 +195,7 @@ def run(
             selected_ids=selected_set,
             all_sections=all_sections,
             on_get_recommendations=None if compare else _refresh_get_recommendations,
+            swipes_per_refresh=swipes_per_refresh,
         )
 
     if body:

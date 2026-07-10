@@ -50,23 +50,32 @@ def get_recommendations(
     params: dict[str, Any],
     session_items: list | None = None,
     selections: list[dict] | None = None,
+    excluded_item_ids: list | None = None,
 ) -> list:
     session_tuple = tuple(session_items or [])
+    excluded_tuple = tuple(excluded_item_ids or [])
     selections_json = json.dumps(selections or [], sort_keys=True, default=str)
     params_hash = hash_params(
-        {**params, "session_items": session_tuple, "selections": selections_json}
+        {
+            **params,
+            "session_items": session_tuple,
+            "selections": selections_json,
+            "excluded_item_ids": excluded_tuple,
+        }
     )
+    request_k = k + len(excluded_tuple)
     result = cached_get_recommendations(
         stable_get_recommendations_id(get_recommendations_fn),
         user_id,
-        k,
+        request_k,
         params_hash,
         session_tuple,
         selections_json,
         get_recommendations_fn,
         **params,
     )
-    return list(result)
+    excluded = set(excluded_tuple)
+    return [item_id for item_id in result if item_id not in excluded][:k]
 
 
 def stable_get_recommendations_id(get_recommendations_fn: Callable[..., list]) -> str:

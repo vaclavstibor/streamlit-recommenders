@@ -5,10 +5,24 @@ import streamlit as st
 from streamlit_recommenders.layouts._helpers import visible_entries
 from streamlit_recommenders.layouts.item_card import (
     DEFAULT_GRID_COLS,
+    inject_swipe_styles,
     render_grid_posters,
     render_horizontal_posters,
+    render_swipe_card,
+    swipe_deck_key,
 )
-from streamlit_recommenders.runtime.keys import get_recommendations_button_key
+from streamlit_recommenders.runtime.keys import get_recommendations_button_key, section_id
+from streamlit_recommenders.runtime.state import (
+    bump_swipe_count,
+    get_disliked_ids,
+    get_selected_ids,
+    get_swipe_skipped,
+    record_skip,
+    record_swipe,
+    reset_swipe_count,
+)
+
+DEFAULT_SWIPES_PER_REFRESH = 5
 
 
 def render_item_carousel(
@@ -19,16 +33,12 @@ def render_item_carousel(
     *,
     n_cols: int = DEFAULT_GRID_COLS,
 ) -> None:
-    """Shared poster-card carousel for rows, grid, and cards layouts."""
+    """Shared poster-card carousel for rows and grid layouts."""
     if not entries:
         return
 
     if layout == "grid":
         render_grid_posters(entries, section, all_sections, n_cols=n_cols)
-        return
-
-    if layout == "cards":
-        render_grid_posters(entries, section, all_sections, n_cols=max(n_cols, 5))
         return
 
     # rows: one horizontally scrollable line for model comparison
@@ -47,6 +57,7 @@ def render_recommender_section(
     all_sections: list[str] | None = None,
     on_get_recommendations: Callable[[], None] | None = None,
     n_cols: int = DEFAULT_GRID_COLS,
+    swipes_per_refresh: int = DEFAULT_SWIPES_PER_REFRESH,
 ) -> None:
     selected = selected_ids or set()
     sections = all_sections or [section]
@@ -54,10 +65,20 @@ def render_recommender_section(
 
     st.subheader(title)
     with st.container(border=True):
+        if layout == "cards":
+            render_swipe_deck(
+                entries,
+                section,
+                sections,
+                on_get_recommendations=on_get_recommendations,
+                swipes_per_refresh=swipes_per_refresh,
+            )
+            return
+
         if not entries:
             st.info("No recommendations to display.")
         else:
-            if layout in {"grid", "cards"}:
+            if layout == "grid":
                 st.caption("Click posters to add items to the session profile.")
             render_item_carousel(entries, section, sections, layout, n_cols=n_cols)
 
@@ -69,3 +90,96 @@ def render_recommender_section(
                 type="primary",
                 on_click=on_get_recommendations,
             )
+
+
+def render_swipe_deck(
+    entries: list[dict],
+    section: str,
+    all_sections: list[str],
+    *,
+    on_get_recommendations: Callable[[], None] | None = None,
+    swipes_per_refresh: int = DEFAULT_SWIPES_PER_REFRESH,
+) -> None:
+    """One-card-at-a-time like/dislike deck with auto-refresh after N swipes."""
+    consumed = set(get_selected_ids()) | set(get_disliked_ids()) | set(get_swipe_skipped(section))
+    remaining = [entry for entry in entries if entry["id"] not in consumed]
+
+    if not remaining:
+        st.info("No more cards in the queue.")
+        if on_get_recommendations is not None:
+            st.button(
+                "Get more recommendations",
+                key=f"{_swipe_key(section)}.more",
+                use_container_width=True,
+                type="primary",
+                on_click=on_get_recommendations,
+            )
+        return
+
+    entry = remaining[0]
+    slug = section_id(section)
+    deck_key = swipe_deck_key(slug)
+    dislike_key = f"{_swipe_key(section)}.dislike.{entry['id']}"
+    skip_key = f"{_swipe_key(section)}.skip.{entry['id']}"
+    like_key = f"{_swipe_key(section)}.like.{entry['id']}"
+    inject_swipe_styles(deck_key, dislike_key, skip_key, like_key)
+
+    with st.container(key=deck_key):
+        render_swipe_card(entry)
+
+        dislike_col, like_col = st.columns(2)
+        dislike_col.button(
+            "Dislike",
+            key=dislike_key,
+            use_container_width=True,
+            on_click=_handle_swipe,
+            args=(section, entry["id"], "dislike", all_sections, on_get_recommendations, swipes_per_refresh),
+        )
+        like_col.button(
+            "Like",
+            key=like_key,
+            use_container_width=True,
+            on_click=_handle_swipe,
+            args=(section, entry["id"], "like", all_sections, on_get_recommendations, swipes_per_refresh),
+        )
+        st.button(
+            "Skip",
+            key=skip_key,
+            use_container_width=True,
+            on_click=_handle_skip,
+            args=(section, entry["id"], on_get_recommendations, swipes_per_refresh),
+        )
+
+
+def _handle_swipe(
+    section: str,
+    item_id: str | int,
+    sentiment: str,
+    all_sections: list[str],
+    on_get_recommendations: Callable[[], None] | None,
+    swipes_per_refresh: int,
+) -> None:
+    record_swipe(section, item_id, sentiment, all_sections)
+    count = bump_swipe_count(section)
+    if count >= swipes_per_refresh and on_get_recommendations is not None:
+        on_get_recommendations()
+        reset_swipe_count(section)
+        st.toast("New recommendations displayed")
+
+
+def _handle_skip(
+    section: str,
+    item_id: str | int,
+    on_get_recommendations: Callable[[], None] | None,
+    swipes_per_refresh: int,
+) -> None:
+    record_skip(section, item_id)
+    count = bump_swipe_count(section)
+    if count >= swipes_per_refresh and on_get_recommendations is not None:
+        on_get_recommendations()
+        reset_swipe_count(section)
+        st.toast("New recommendations displayed")
+
+
+def _swipe_key(section: str) -> str:
+    return f"streamlit_recommenders.swipe.{section_id(section)}"

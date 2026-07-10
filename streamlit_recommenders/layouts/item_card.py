@@ -15,6 +15,9 @@ from streamlit_recommenders.runtime.state import record_selection
 DEFAULT_GRID_COLS = 4
 CARD_WIDTH_PX = 120
 PROFILE_KEY_PREFIX = "streamlit_recommenders-profile-"
+SWIPE_KEY_PREFIX = "streamlit_recommenders-swipe-"
+SWIPE_POSTER_WIDTH_PX = 160
+SWIPE_DECK_MAX_WIDTH_PX = 560
 
 
 def _css_url(url: str) -> str:
@@ -353,6 +356,109 @@ def render_display_poster(entry: dict, key: str) -> None:
             f'style="background-image:url(\'{image}\');"></div>',
             unsafe_allow_html=True,
         )
+
+
+def swipe_deck_key(section: str) -> str:
+    return f"{SWIPE_KEY_PREFIX}deck-{section}"
+
+
+def render_swipe_card(entry: dict) -> None:
+    """Poster on the left, title and description on the right."""
+    image = _css_url(entry["image"] or item_placeholder())
+    title = html.escape(str(entry["title"]))
+    description = html.escape(str(entry.get("description") or ""))
+    description_html = (
+        f'<div class="sr-swipe-description">{description}</div>' if description else ""
+    )
+    st.markdown(
+        (
+            '<div class="sr-swipe-card">'
+            f'<div class="sr-swipe-poster" style="background-image:url(\'{image}\');"></div>'
+            '<div class="sr-swipe-details">'
+            f'<div class="sr-swipe-title">{title}</div>'
+            f"{description_html}"
+            "</div></div>"
+        ),
+        unsafe_allow_html=True,
+    )
+
+
+def inject_swipe_styles(
+    deck_key: str,
+    dislike_key: str,
+    skip_key: str,
+    like_key: str,
+) -> None:
+    """Centered deck layout plus Dislike (red) / Skip (blue) / Like (green) button colors."""
+    deck = _st_key_slug(deck_key)
+    dislike = _st_key_slug(dislike_key)
+    skip = _st_key_slug(skip_key)
+    like = _st_key_slug(like_key)
+    _inject_html(
+        f"""
+<style>
+div[class*="st-key-{deck}"] {{
+    max-width: {SWIPE_DECK_MAX_WIDTH_PX}px;
+    margin: 0 auto;
+}}
+div[class*="st-key-{deck}"] .sr-swipe-card {{
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 4px 0 12px;
+}}
+div[class*="st-key-{deck}"] .sr-swipe-poster {{
+    flex: 0 0 {SWIPE_POSTER_WIDTH_PX}px;
+    width: {SWIPE_POSTER_WIDTH_PX}px;
+    aspect-ratio: 2 / 3;
+    border-radius: 12px;
+    background-color: #eef2f7;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+}}
+div[class*="st-key-{deck}"] .sr-swipe-details {{
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+}}
+div[class*="st-key-{deck}"] .sr-swipe-title {{
+    font-weight: 700;
+    font-size: 1.05rem;
+    line-height: 1.35;
+    color: #0f172a;
+}}
+div[class*="st-key-{deck}"] .sr-swipe-description {{
+    margin-top: 8px;
+    color: #64748b;
+    font-size: 0.875rem;
+    line-height: 1.45;
+}}
+{_swipe_button_rule(dislike, "#dc2626", "#b91c1c")}
+{_swipe_button_rule(skip, "#2563eb", "#1d4ed8")}
+{_swipe_button_rule(like, "#16a34a", "#15803d")}
+</style>
+        """,
+    )
+
+
+def _swipe_button_rule(key_slug: str, color: str, hover: str) -> str:
+    sel = f'div[class*="st-key-{key_slug}"] button'
+    return f"""
+{sel} {{
+    background-color: {color} !important;
+    border-color: {color} !important;
+    color: #ffffff !important;
+}}
+{sel}:hover,
+{sel}:focus-visible {{
+    background-color: {hover} !important;
+    border-color: {hover} !important;
+    color: #ffffff !important;
+}}
+{sel} p {{ color: #ffffff !important; font-weight: 700 !important; }}
+"""
 
 
 def render_horizontal_posters(

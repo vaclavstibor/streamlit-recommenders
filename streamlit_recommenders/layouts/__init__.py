@@ -3,7 +3,7 @@ from collections.abc import Callable
 from streamlit_recommenders.layouts.cards import cards
 from streamlit_recommenders.layouts.grid import grid
 from streamlit_recommenders.layouts.rows import rows
-from streamlit_recommenders.layouts.section import render_recommender_section
+from streamlit_recommenders.layouts.section import DEFAULT_SWIPES_PER_REFRESH, render_recommender_section
 
 LAYOUTS = {
     "rows": rows,
@@ -23,6 +23,7 @@ def render_layout(
     all_sections: list[str] | None = None,
     on_get_recommendations: Callable[[], None] | None = None,
     n_cols: int = 4,
+    swipes_per_refresh: int = DEFAULT_SWIPES_PER_REFRESH,
 ) -> None:
     render_recommender_section(
         layout,
@@ -35,4 +36,5 @@ def render_layout(
         all_sections=all_sections,
         on_get_recommendations=on_get_recommendations,
         n_cols=n_cols,
+        swipes_per_refresh=swipes_per_refresh,
     )
