@@ -4,14 +4,14 @@ This directory is for local datasets and generated artifacts that should not be 
 
 ## MovieLens preprocessing
 
-Use the preprocessing script to download a MovieLens ZIP, convert it to the local schema, and optionally fetch TMDB metadata/posters:
+Use the library CLI to download a MovieLens ZIP, convert it to the local schema, and optionally fetch TMDB metadata/posters:
 
 ```bash
-python scripts/preprocess_movielens.py --dataset ml-32m
-TMDB_API_KEY=... python scripts/preprocess_movielens.py --dataset ml-32m --with-tmdb --download-posters --force
+python -m streamlit_recommenders.data.prepare --dataset ml-32m
+TMDB_API_KEY=... python -m streamlit_recommenders.data.prepare --dataset ml-32m --with-posters
 ```
 
-Supported datasets are `ml-latest-small`, `ml-latest`, `ml-25m`, and `ml-32m`. The script writes `items.csv`, `interactions.csv`, raw source CSVs, and optional poster files under `data/<dataset>/`. Poster downloads require `TMDB_API_KEY` or `TMDB_BEARER_TOKEN`; use `--poster-limit 1000` for a smaller first run.
+Supported datasets are `ml-latest-small`, `ml-latest`, `ml-25m`, and `ml-32m`. The preparation module writes `items.csv`, `interactions.csv`, raw source CSVs, optional poster files, and a completion manifest under `data/<dataset>/`. Poster downloads require `TMDB_API_KEY` or `TMDB_BEARER_TOKEN`; use `--poster-limit 1000` for a smaller first run.
 
 Recommended layout for any local recommender dataset:
 

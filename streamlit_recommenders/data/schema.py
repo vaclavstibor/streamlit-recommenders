@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import pandas as pd
 
@@ -91,6 +92,39 @@ def load_dataset(
         columns=cols,
     )
     return dataset.validate()
+
+
+def load_local_dataset(
+    root: str | Path,
+    *,
+    resolve_images: bool = True,
+) -> tuple[pd.DataFrame, pd.DataFrame | None, pd.DataFrame | None]:
+    """Load items + interactions (+ test) from a prepared local dataset folder.
+
+    Expects ``items.csv`` and either ``train_interactions.csv`` or
+    ``interactions.csv``; ``test_interactions.csv`` is optional. When
+    ``resolve_images`` is set, item poster paths are resolved to local files.
+    """
+    root = Path(root)
+    items = load_items(str(root / "items.csv"))
+    if resolve_images:
+        from streamlit_recommenders.data.media import resolve_image_urls
+
+        items = items.copy()
+        items["image_url"] = resolve_image_urls(items, root)
+
+    train_path = root / "train_interactions.csv"
+    interactions_path = root / "interactions.csv"
+    if train_path.exists():
+        interactions = load_interactions(str(train_path))
+    elif interactions_path.exists():
+        interactions = load_interactions(str(interactions_path))
+    else:
+        interactions = None
+
+    test_path = root / "test_interactions.csv"
+    test = load_interactions(str(test_path)) if test_path.exists() else None
+    return items, interactions, test
 
 
 def validate_dataset(dataset: Dataset) -> None:
