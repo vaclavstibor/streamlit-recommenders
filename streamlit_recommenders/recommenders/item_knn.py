@@ -5,14 +5,13 @@ import pandas as pd
 
 from streamlit_recommenders.recommenders._common import (
     item_ids_from,
-    rank_scores,
     user_item_matrix,
     user_vector,
 )
-from streamlit_recommenders.runtime.seen import effective_seen
+from streamlit_recommenders.recommenders.base import BaseRecommender
 
 
-class ItemKNNRecommender:
+class ItemKNNRecommender(BaseRecommender):
     """Item-item collaborative filtering baseline using cosine similarity."""
 
     def __init__(
@@ -37,17 +36,14 @@ class ItemKNNRecommender:
     ) -> ItemKNNRecommender:
         return cls(interactions, items, k_neighbors)
 
-    def get_recommendations(
+    def scores(
         self,
         user_id: str | int,
-        k: int,
         session_items: list | None = None,
         **params,
-    ) -> list:
-        seen = effective_seen(self.interactions, user_id, session_items)
+    ) -> np.ndarray:
         vector = user_vector(self.interactions, user_id, self.item_index, session_items)
-        scores = vector @ self.similarity if vector.any() else self.popularity.copy()
-        return rank_scores(scores, self.item_ids, seen, k)
+        return vector @ self.similarity if vector.any() else self.popularity.copy()
 
     def _fit_similarity(self, matrix: np.ndarray) -> np.ndarray:
         cooccurrence = matrix.T @ matrix

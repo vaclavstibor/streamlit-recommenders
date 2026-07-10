@@ -3,11 +3,11 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from streamlit_recommenders.recommenders._common import item_ids_from, rank_scores
-from streamlit_recommenders.runtime.seen import effective_seen
+from streamlit_recommenders.recommenders._common import item_ids_from
+from streamlit_recommenders.recommenders.base import BaseRecommender
 
 
-class SequentialCFRecommender:
+class SequentialCFRecommender(BaseRecommender):
     """Lightweight next-item baseline from item-to-item transition counts."""
 
     def __init__(
@@ -34,19 +34,17 @@ class SequentialCFRecommender:
     ) -> SequentialCFRecommender:
         return cls(interactions, items, timestamp_col)
 
-    def get_recommendations(
+    def scores(
         self,
         user_id: str | int,
-        k: int,
         session_items: list | None = None,
         **params,
-    ) -> list:
-        seen = effective_seen(self.interactions, user_id, session_items)
+    ) -> np.ndarray:
         anchor = self._last_item(user_id, session_items)
         scores = self.transitions[self.item_index[anchor]].copy() if anchor in self.item_index else self.popularity.copy()
         if not scores.any():
             scores = self.popularity.copy()
-        return rank_scores(scores, self.item_ids, seen, k)
+        return scores
 
     def _fit_transitions(self, interactions: pd.DataFrame) -> np.ndarray:
         transitions = np.zeros((len(self.item_ids), len(self.item_ids)), dtype=float)

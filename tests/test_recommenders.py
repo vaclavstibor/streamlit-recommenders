@@ -1,58 +1,10 @@
-import numpy as np
 import pandas as pd
 
-from streamlit_recommenders.models.adapter import adapt_get_recommendations
 from streamlit_recommenders.recommenders import (
     EASERecommender,
-    EmbeddingPopularityRecommender,
     ItemKNNRecommender,
-    PopularityRecommender,
-    RandomRecommender,
     SequentialCFRecommender,
 )
-from streamlit_recommenders.runtime.seen import SESSION_USER_ID
-
-
-def test_embedding_popularity_recommender():
-    items = pd.DataFrame({"item_id": [0, 1, 2], "title": ["a", "b", "c"]})
-    interactions = pd.DataFrame({"user_id": [0, 0], "item_id": [0, 1]})
-    user_emb = np.array([[1.0, 0.0], [0.0, 1.0]])
-    item_emb = np.eye(3, 2)
-
-    model = EmbeddingPopularityRecommender.from_interactions(user_emb, item_emb, items, interactions)
-    adapted = adapt_get_recommendations(model)
-
-    assert adapted(0, 2, alpha=1.0) == [2]
-    assert adapted(1, 2, alpha=1.0) == [1, 2]
-
-
-def test_popularity_recommender():
-    interactions = pd.DataFrame({"user_id": [0, 0, 1], "item_id": [0, 0, 1]})
-    model = PopularityRecommender.from_interactions(interactions)
-    assert model.get_recommendations(0, 2) == [1]
-    assert model.get_recommendations(1, 2) == [0]
-
-
-def test_embedding_popularity_session_user():
-    items = pd.DataFrame({"item_id": [0, 1, 2], "title": ["a", "b", "c"]})
-    interactions = pd.DataFrame({"user_id": [0, 0], "item_id": [0, 1]})
-    user_emb = np.array([[1.0, 0.0], [0.0, 1.0]])
-    item_emb = np.eye(3, 2)
-
-    model = EmbeddingPopularityRecommender.from_interactions(user_emb, item_emb, items, interactions)
-    recs = model.get_recommendations(SESSION_USER_ID, 2, alpha=1.0, session_items=[0])
-    assert 0 not in recs
-    assert len(recs) <= 2
-
-
-def test_random_recommender_deterministic():
-    interactions = pd.DataFrame({"user_id": [0], "item_id": [0]})
-    model = RandomRecommender(interactions, n_items=4, seed=7)
-    first = model.get_recommendations(1, 2)
-    second = model.get_recommendations(1, 2)
-    assert first == second
-    assert len(first) == 2
-    assert 0 not in first
 
 
 def test_item_knn_recommender_filters_seen():

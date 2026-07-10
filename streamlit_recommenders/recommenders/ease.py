@@ -5,14 +5,13 @@ import pandas as pd
 
 from streamlit_recommenders.recommenders._common import (
     item_ids_from,
-    rank_scores,
     user_item_matrix,
     user_vector,
 )
-from streamlit_recommenders.runtime.seen import effective_seen
+from streamlit_recommenders.recommenders.base import BaseRecommender
 
 
-class EASERecommender:
+class EASERecommender(BaseRecommender):
     """Embarrassingly Shallow Autoencoder baseline for implicit feedback."""
 
     def __init__(
@@ -36,25 +35,21 @@ class EASERecommender:
     ) -> EASERecommender:
         return cls(interactions, items, l2)
 
-    def get_recommendations(
+    def scores(
         self,
         user_id: str | int,
-        k: int,
         session_items: list | None = None,
         **params,
-    ) -> list:
-        seen = effective_seen(self.interactions, user_id, session_items)
+    ) -> np.ndarray:
         vector = user_vector(self.interactions, user_id, self.item_index, session_items)
-        scores = vector @ self.weights if vector.any() else self.popularity.copy()
-        return rank_scores(scores, self.item_ids, seen, k)
+        return vector @ self.weights if vector.any() else self.popularity.copy()
 
     def score_frame(
         self,
         user_id: str | int,
         session_items: list | None = None,
     ) -> pd.DataFrame:
-        vector = user_vector(self.interactions, user_id, self.item_index, session_items)
-        scores = vector @ self.weights if vector.any() else self.popularity.copy()
+        scores = self.scores(user_id, session_items=session_items)
         return pd.DataFrame({"item_id": self.item_ids, "score": scores}).sort_values(
             "score",
             ascending=False,
@@ -69,6 +64,3 @@ class EASERecommender:
         weights = -precision / np.diag(precision)
         weights[diagonal] = 0.0
         return weights
-
-
-ELSARecommender = EASERecommender
