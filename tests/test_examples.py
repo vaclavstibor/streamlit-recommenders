@@ -10,13 +10,30 @@ EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
 if str(EXAMPLES) not in sys.path:
     sys.path.insert(0, str(EXAMPLES))
 
+import streamlit_recommenders as sr
 from artifact_recommender import ArtifactRecommender
 
 
 def test_polished_examples_exist():
+    assert (EXAMPLES / "2_builtin_recommenders.py").exists()
     assert (EXAMPLES / "3_models_comparison_rows.py").exists()
+    assert (EXAMPLES / "4_swipe_deck_cards.py").exists()
     assert (EXAMPLES / "artifact_recommender.py").exists()
     assert (EXAMPLES / "train_baseline_artifacts.py").exists()
+
+
+def test_artifact_recommender_module_uses_library_io():
+    import artifact_recommender
+
+    assert hasattr(artifact_recommender, "load_artifact_dataset")
+    assert hasattr(artifact_recommender, "load_artifact_models")
+    # I/O helpers moved into the library data layer.
+    assert not hasattr(artifact_recommender, "resolve_image_urls")
+
+
+def test_artifact_recommender_is_library_class():
+    assert ArtifactRecommender is sr.ArtifactRecommender
+    assert issubclass(ArtifactRecommender, sr.BaseRecommender)
 
 
 def test_legacy_examples_removed():
