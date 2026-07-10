@@ -2,7 +2,20 @@
 
 from streamlit_recommenders.runner import load_interactions, load_items, run
 from streamlit_recommenders.content.markdown import markdown, markdown_file
-from streamlit_recommenders.data import ColumnMap, Dataset, load_dataset, load_users, validate_dataset
+from streamlit_recommenders.data import (
+    ColumnMap,
+    Dataset,
+    load_dataset,
+    load_local_dataset,
+    load_users,
+    resolve_image_urls,
+    validate_dataset,
+)
+from streamlit_recommenders.data.prepare import (
+    is_complete,
+    prepare_goodbooks,
+    prepare_movielens,
+)
 from streamlit_recommenders.layouts import render_layout
 from streamlit_recommenders.layouts.cards import cards
 from streamlit_recommenders.layouts.grid import grid
@@ -17,12 +30,10 @@ from streamlit_recommenders.metrics import (
 )
 from streamlit_recommenders.models.protocol import RecommenderProtocol
 from streamlit_recommenders.recommenders import (
+    ArtifactRecommender,
+    BaseRecommender,
     EASERecommender,
-    ELSARecommender,
-    EmbeddingPopularityRecommender,
     ItemKNNRecommender,
-    PopularityRecommender,
-    RandomRecommender,
     SequentialCFRecommender,
 )
 from streamlit_recommenders.runtime.keys import param_key
@@ -64,7 +75,12 @@ __all__ = [
     "load_interactions",
     "load_users",
     "load_dataset",
+    "load_local_dataset",
+    "resolve_image_urls",
     "validate_dataset",
+    "prepare_movielens",
+    "prepare_goodbooks",
+    "is_complete",
     "ColumnMap",
     "Dataset",
     "slider",
@@ -84,12 +100,10 @@ __all__ = [
     "markdown",
     "markdown_file",
     "RecommenderProtocol",
+    "ArtifactRecommender",
+    "BaseRecommender",
     "EASERecommender",
-    "ELSARecommender",
-    "EmbeddingPopularityRecommender",
     "ItemKNNRecommender",
-    "PopularityRecommender",
-    "RandomRecommender",
     "SequentialCFRecommender",
     "current_user",
     "selected_items",
