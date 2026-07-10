@@ -6,7 +6,7 @@ Practical API overview. Formal contracts: [CONTRACTS.md](CONTRACTS.md).
 
 ```bash
 pip install -e ".[dev,training]"
-python scripts/preprocess_movielens.py --dataset ml-latest-small # or ml-latest, ml-25m, ml-32m; see data/README.md for TMDB posters
+python -m streamlit_recommenders.data.prepare --dataset ml-latest-small # or ml-latest, ml-25m, ml-32m; add --with-posters (needs TMDB_API_KEY)
 .venv/bin/python examples/train_baseline_artifacts.py --data data/ml-latest-small # Additional training script for baseline models and exporting artifacts
 SR_DATA_DIR=data/ml-latest-small .venv/bin/streamlit run examples/3_models_comparison_rows.py # 3 models comparison (in rows layout) library demonstration
 ```
@@ -18,14 +18,15 @@ Requires **Python ≥3.10** and the project venv.
 | Area | API |
 |------|-----|
 | App | `sr.run(...)` |
-| Data | `load_items`, `load_interactions`, `load_users`, `load_dataset`, `Dataset`, `ColumnMap`, `validate_dataset` |
+| Data | `load_items`, `load_interactions`, `load_users`, `load_dataset`, `load_local_dataset`, `resolve_image_urls`, `Dataset`, `ColumnMap`, `validate_dataset` |
+| Data prep | `prepare_movielens`, `prepare_goodbooks`, `is_complete` |
 | Params | `slider`, `selectbox`, `param_value` |
 | Layouts | `rows`, `grid`, `cards` |
 | Session | `current_user`, `selected_items`, `selections` |
 | Content | `plot`, `table`, `markdown`, `markdown_file` |
 | Viz helpers | `dataset_info`, `recommendation_overlap_matrix`, `plot_overlap_heatmap`, `plot_metric_comparison`, `plot_ranked_items`, `plot_score_distribution` |
 | Metrics | `evaluate`, `hit_rate_at_k`, `recall_at_k`, `ndcg_at_k`, `mrr_at_k`, `coverage` |
-| Models | `EmbeddingPopularityRecommender`, `ItemKNNRecommender`, `EASERecommender`, `SequentialCFRecommender`, `PopularityRecommender`, `RandomRecommender` |
+| Models | `ItemKNNRecommender`, `EASERecommender`, `SequentialCFRecommender`, `ArtifactRecommender`, `BaseRecommender` |
 
 ## `sr.run()`
 
@@ -76,6 +77,33 @@ Default logical columns: `user_id`, `item_id`, `rating`, `timestamp`, `title`, `
 
 Only `item_id` is required for `items`. Movie demos should prefer `title`, `image_url`, and `description`; missing images render with a placeholder. Local protected datasets should live under `data/` and stay out of git.
 
+Load a prepared folder (resolves poster paths to local files) with:
+
+```python
+items, train, test = sr.load_local_dataset("data/ml-32m-filtered")
+```
+
+## Data preparation
+
+Prepare datasets from inside the library (no standalone scripts required):
+
+```python
+sr.prepare_movielens("ml-32m")                      # items.csv + interactions.csv
+sr.prepare_movielens("ml-32m", with_posters=True)   # + TMDB descriptions/posters (TMDB_API_KEY)
+sr.prepare_goodbooks()                              # books carry cover image URLs (kagglehub optional)
+```
+
+Or via CLI:
+
+```bash
+python -m streamlit_recommenders.data.prepare --dataset ml-32m --with-posters
+```
+
+Each prepared folder gets a `dataset.json` manifest; `sr.is_complete(root)` guards against
+re-running collection, so preparation is idempotent and a finished dataset is not re-fetched
+before a demo run. TMDB enrichment is robust (retry/backoff, 429 handling) and writes a
+`metadata_completeness.csv` report listing items still missing a poster or description.
+
 ## External model training
 
 The core package does not train heavy models. Train with any external code, export pure artifacts, then pass a function/object that returns ordered item ids:
@@ -111,11 +139,24 @@ Recommended baseline story:
 
 ## Item cards and layouts
 
-- All layouts use the same clickable poster cards.
-- `rows`: one horizontal row with fixed-width poster cards and side scroll.
-- `cards` and `grid`: wrapped poster galleries for browsing/catalog-style display.
-- Selected items stay in place as greyed cards; click them again to unselect.
+- `rows`: one horizontal row with fixed-width clickable poster cards and side scroll.
+- `grid`: wrapped clickable poster gallery for catalog-style browsing.
+- `cards`: swipe deck. One card at a time with Like / Dislike / Skip buttons.
+- Clickable layouts (`rows`, `grid`): selected items stay in place as greyed cards; click again to unselect.
 - Compare mode always uses `rows`.
+
+### Swipe deck (`cards`)
+
+Like adds the item to the session profile (same signal as a card click); Dislike records
+negative feedback and removes the card; Skip just advances. After `swipes_per_refresh`
+like/dislike swipes the queue is refreshed against the updated profile:
+
+```python
+sr.run(get_recommendations=model, items=items, interactions=train, layout="cards", swipes_per_refresh=5)
+```
+
+`swipes_per_refresh` defaults to 5 and can also be overridden via a reserved sidebar param.
+Swipe is single-model; compare mode (dict input) stays on `rows`.
 
 ## Metrics
 
@@ -151,9 +192,11 @@ The overlap helper computes pairwise Jaccard agreement between model outputs and
 
 | File | Shows |
 |------|-------|
-| `3_models_comparison_rows.py` | Lead demo: compare ItemKNN, EASE, and Sequential CF artifacts in rows layout |
+| `2_builtin_recommenders.py` | Way 2: fit built-in baselines on interactions (no artifacts) and compare |
+| `3_models_comparison_rows.py` | Lead demo (way 1): compare ItemKNN, EASE, and Sequential CF artifacts in rows layout |
+| `4_swipe_deck_cards.py` | Single-model swipe deck (cards layout) with like/dislike/skip and auto-refresh |
 | `train_baseline_artifacts.py` | Train/export SciPy/NumPy baseline artifacts on a local `data/<dataset-name>` folder |
-| `artifact_recommender.py` | Thin adapter from exported arrays to `get_recommendations()` |
+| `artifact_recommender.py` | Example glue: `load_artifact_models` + re-export of `sr.ArtifactRecommender` (I/O lives in `sr.data`) |
 
 ## Not yet implemented
 

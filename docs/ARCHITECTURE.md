@@ -19,7 +19,7 @@ flowchart TB
     layout_fn["rows() · grid() · cards()"]
     viz_fn["plot() · table() · markdown()"]
     state_fn["selected_items() · current_user() · param_value()"]
-    models_fn["EmbeddingPopularity · ItemKNN · EASE\nSequentialCF · Popularity · Random"]
+    models_fn["Base · Artifact\nItemKNN · EASE · SequentialCF"]
   end
 
   subgraph runner["runner.py: orchestration"]
@@ -42,8 +42,8 @@ flowchart TB
 
   subgraph layouts["layouts/"]
     card["item_card.py: poster button"]
-    section["section.py: carousel + Get Recommendations btn"]
-    modes["rows · grid · cards"]
+    section["section.py: carousel/swipe deck + Get Recommendations btn"]
+    modes["rows · grid (click) · cards (swipe)"]
   end
 
   subgraph widgets["widgets/"]
@@ -89,12 +89,14 @@ The library owns the interactive inspection layer, not the full model-training p
 
 ```mermaid
 flowchart LR
-  dataPrep["Data prep"] --> train["External training framework"]
+  dataPrep["Data prep\nsr.data.prepare (MovieLens/goodbooks + TMDB)"] --> train["External training or built-in fit"]
   train --> artifact["Trained model or scores"]
   artifact --> adapter["Thin get_recommendations adapter"]
   adapter --> demo["sr.run compare rows"]
   demo --> feedback["Session clicks"]
   feedback --> adapter
 ```
+
+Data preparation lives inside the library (`streamlit_recommenders/data/prepare/`): `prepare_movielens` / `prepare_goodbooks` download and normalize into the local schema, TMDB enrichment is robust (retry/backoff, completeness report), and a `dataset.json` manifest (`is_complete`) makes preparation idempotent so a finished dataset is not re-collected before a run.
 
 Core baselines stay lightweight and citeable: `ItemKNNRecommender`, `EASERecommender`, and `SequentialCFRecommender`. Heavy frameworks such as RecBole, Cornac, RecPack, LensKit, and Elliot should be optional example integrations rather than required dependencies.

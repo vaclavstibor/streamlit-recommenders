@@ -10,7 +10,7 @@ Lightweight Streamlit library for **interactive recommender demos**. You load da
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev,training]"
-python scripts/preprocess_movielens.py --dataset ml-latest-small # or ml-latest, ml-25m, ml-32m; see data/README.md for TMDB posters
+python -m streamlit_recommenders.data.prepare --dataset ml-latest-small # or ml-latest, ml-25m, ml-32m; add --with-posters TMDB_API_KEY=... for posters
 .venv/bin/python examples/train_baseline_artifacts.py --data data/ml-latest-small # Additional training script for baseline models and exporting artifacts
 SR_DATA_DIR=data/ml-latest-small .venv/bin/streamlit run examples/3_models_comparison_rows.py # 3 models comparison (in rows layout) library demonstration
 ```
@@ -49,6 +49,16 @@ sr.run(
 )
 ```
 
+## Three ways to plug in a recommender
+
+The library owns the interactive layer; you provide recommendations in whichever of these fits your workflow:
+
+1. **Bring your trained model / weights.** Export your model to plain arrays (or keep the object) and expose `get_recommendations()`. The lead demo uses `sr.ArtifactRecommender`, which loads exported `.npz` weights. Subclass `sr.BaseRecommender` (implement `scores()`) for custom trained models.
+2. **Train with a built-in definition.** Fit a reference recommender directly on your interactions: `model = sr.EASERecommender.from_interactions(train)` (or use ItemKNN or Sequential CF). `from_interactions` is the fit step. See `examples/2_builtin_recommenders.py`.
+3. **Thin function adapter.** Skip classes entirely and write a plain `def get_recommendations(user_id, k, session_items=None, **params): ...` around any external scorer or API.
+
+All three return ordered item ids and drop straight into `sr.run(...)`.
+
 ## What you write vs. what the library does
 
 | You | Library |
@@ -72,15 +82,13 @@ Missing posters are fine: item cards fall back to a placeholder image. For Movie
 
 ## Layouts
 
-All layouts share the same **clickable poster cards** (hover title, description tooltip).
-
 | Layout | Display |
 |--------|---------|
-| `rows` | One horizontal row with fixed-width cards and side scroll |
-| `cards` | Wrapped poster-card gallery for a single recommender |
-| `grid` | Catalog-style poster grid with configurable columns |
+| `rows` | One horizontal row of clickable poster cards with side scroll |
+| `grid` | Catalog-style clickable poster grid with configurable columns |
+| `cards` | Swipe deck: one card at a time with Like / Dislike / Skip; refreshes after `swipes_per_refresh` swipes |
 
-Compare mode (`get_recommendations={...}`) always uses `rows`.
+`rows` and `grid` use clickable poster cards (hover title, description tooltip). Compare mode (`get_recommendations={...}`) always uses `rows`; the `cards` swipe deck is single-model. See `examples/4_swipe_deck_cards.py`.
 
 ## Session UX
 
@@ -92,8 +100,8 @@ Compare mode (`get_recommendations={...}`) always uses `rows`.
 
 | Area | API |
 |------|-----|
-| Data | `Dataset`, `ColumnMap`, `load_dataset()`, `validate_dataset()` |
-| Recommenders | `ItemKNNRecommender`, `EASERecommender`, `SequentialCFRecommender`, `PopularityRecommender`, `RandomRecommender` |
+| Data | `Dataset`, `ColumnMap`, `load_dataset()`, `load_local_dataset()`, `validate_dataset()` |
+| Recommenders | `BaseRecommender`, `ArtifactRecommender`, `ItemKNNRecommender`, `EASERecommender`, `SequentialCFRecommender` |
 | Metrics | `evaluate()`, `hit_rate_at_k()`, `recall_at_k()`, `ndcg_at_k()`, `mrr_at_k()`, `coverage()` |
 | Viz | `dataset_info()`, `recommendation_overlap_matrix()`, `plot_overlap_heatmap()`, `plot_metric_comparison()`, `plot_ranked_items()`, `plot_score_distribution()` |
 
@@ -121,9 +129,11 @@ The training script reads standard `items.csv`/`interactions.csv`, or raw MovieL
 
 | File | Pattern |
 |------|---------|
-| `3_models_comparison_rows.py` | Lead demo: compare ItemKNN, EASE, and Sequential CF artifacts in rows layout |
+| `2_builtin_recommenders.py` | Way 2: fit built-in baselines on interactions (no artifacts) and compare |
+| `3_models_comparison_rows.py` | Lead demo (way 1): compare ItemKNN, EASE, and Sequential CF artifacts in rows layout |
+| `4_swipe_deck_cards.py` | Single-model swipe deck (cards layout) with like/dislike/skip |
 | `train_baseline_artifacts.py` | Train/export SciPy/NumPy baseline artifacts under `data/<dataset-name>/artifacts` |
-| `artifact_recommender.py` | Thin example adapter from exported arrays to `get_recommendations()` |
+| `artifact_recommender.py` | Example glue: `load_artifact_models` + re-export of `sr.ArtifactRecommender` |
 
 ## Not in scope
 

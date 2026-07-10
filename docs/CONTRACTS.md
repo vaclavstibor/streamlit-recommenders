@@ -50,6 +50,10 @@ data/
 
 Do not commit MovieLens data or cached posters unless their license explicitly allows it. Commit only scripts/docs that describe how to recreate the local files.
 
+### Preparation
+
+`sr.prepare_movielens(dataset, root=None, *, with_posters=False, tmdb_api_key=None, poster_limit=0, force=False)` and `sr.prepare_goodbooks(root=None, *, force=False)` write `items.csv`/`interactions.csv` plus a `dataset.json` manifest. `sr.is_complete(root)` reports whether a folder is fully prepared; preparation is a no-op on a complete folder unless `force=True` (or posters are newly requested). `sr.load_local_dataset(root)` returns `(items, train_or_interactions, test)` with poster paths resolved to local files (missing ones fall back to the placeholder).
+
 ## Recommender
 
 ```python
@@ -75,8 +79,8 @@ Optional injected kwargs when accepted by signature:
 
 | Kwarg | Content |
 |-------|---------|
-| `session_items` | Ordered ids from the session profile |
-| `selections` | Per-section `{item_id, rank, source}` metadata |
+| `session_items` | Ordered ids from the session profile (likes/clicks) |
+| `selections` | Per-section `{item_id, rank, source}` metadata; swipe dislikes add `sentiment: "dislike"` |
 
 Use `effective_seen(interactions, user_id, session_items)` for filtering. Artifact paths, model checkpoints, external API handles, or framework-specific objects are construction details of the adapter, not part of the core recommender protocol.
 
@@ -96,7 +100,7 @@ Recommended baseline families:
 | Family | Built-in lightweight class | Canonical citation |
 |--------|----------------------------|--------------------|
 | Item-item CF | `ItemKNNRecommender` | Deshpande & Karypis, ACM TOIS 2004 |
-| Shallow linear CF | `EASERecommender` / `ELSARecommender` | Steck, WWW 2019 |
+| Shallow linear CF | `EASERecommender` | Steck, WWW 2019 |
 | Sequential CF | `SequentialCFRecommender` | SASRec, Kang & McAuley, ICDM 2018 |
 
 ## Runtime params
@@ -107,6 +111,7 @@ Reserved keys:
 |-----|---------|
 | `num_recs` / `k` | Passed as `k` |
 | `layout` | `rows` \| `grid` \| `cards` |
+| `swipes_per_refresh` | Swipes before the `cards` deck refreshes its queue |
 
 YAML widget types: `slider`, `selectbox`.
 
@@ -116,9 +121,9 @@ All layouts render ids through the same poster-button card.
 
 | Layout | Behaviour |
 |--------|-----------|
-| `rows` | Single horizontal row with fixed-width cards and side scroll |
-| `cards` | Wrapped poster-card gallery for a single recommender |
-| `grid` | Wrapped poster grid for catalog-style browsing |
+| `rows` | Single horizontal row with fixed-width clickable cards and side scroll |
+| `grid` | Wrapped clickable poster grid for catalog-style browsing |
+| `cards` | Swipe deck: one card at a time with Like / Dislike / Skip; refreshes after `swipes_per_refresh` swipes |
 | compare | Forced to `rows` |
 
 Widget keys include rank: `streamlit_recommenders.item.{section}.{id}.r{rank}`. Duplicate ids are deduplicated before display; selected ids remain visible as greyed cards that can be clicked again to unselect.
