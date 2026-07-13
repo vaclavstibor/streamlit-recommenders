@@ -15,7 +15,7 @@ __all__ = [
     "load_artifact_models",
 ]
 
-DEFAULT_DATA_DIR = Path("data/ml-32m-filtered")
+DEFAULT_DATA_DIR = Path("data/ml-latest-small")
 
 
 def data_dir() -> Path:

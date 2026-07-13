@@ -19,13 +19,15 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from streamlit_recommenders.data.prepare._progress import ProgressBar
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--data",
         type=Path,
-        default=Path("data/ml-32m-filtered"),
+        default=Path("data/ml-latest-small"),
         help="Dataset directory. Supports standard CSVs or MovieLens movies.csv/ratings.csv.",
     )
     parser.add_argument("--k-neighbors", type=int, default=100)
@@ -206,6 +208,7 @@ def user_item_matrix(sparse, interactions: pd.DataFrame, item_ids: list):
 
 
 def train_itemknn(matrix, item_ids: list, output_path: Path, k_neighbors: int) -> None:
+    progress = ProgressBar(len(item_ids), label="[1/3] ItemKNN similarity")
     cooccurrence = (matrix.T @ matrix).toarray().astype(np.float32)
     norms = np.sqrt(np.diag(cooccurrence))
     denom = np.outer(norms, norms)
@@ -216,7 +219,8 @@ def train_itemknn(matrix, item_ids: list, output_path: Path, k_neighbors: int) -
         where=denom > 0,
     )
     np.fill_diagonal(similarity, 0.0)
-    keep_topk(similarity, k_neighbors)
+    keep_topk(similarity, k_neighbors, progress=progress)
+    progress.finish()
     save_artifact(
         output_path,
         model_type="itemknn",
@@ -234,26 +238,47 @@ def train_ease(
     l2: float,
     allow_large: bool,
 ) -> None:
+    from scipy import linalg
+
     n_items = matrix.shape[1]
-    estimated_gb = (n_items * n_items * 8 * 3) / (1024**3)
+    estimated_gb = (n_items * n_items * 4 * 4) / (1024**3)
     if estimated_gb > 6 and not allow_large:
         raise MemoryError(
             f"EASE for {n_items:,} items may need about {estimated_gb:.1f} GB. "
             "Use --allow-large-ease if this machine can handle it."
         )
 
-    gram = (matrix.T @ matrix).toarray().astype(np.float64)
+    progress = ProgressBar(3, label="[2/3] EASE closed-form solve")
+    # Memory is the constraint here, not precision: the exported weights are
+    # float32 anyway and gram + l2*I is symmetric positive definite and well
+    # conditioned, so everything stays float32 and the inverse comes from an
+    # in-place Cholesky solve (peak ~3.5x the matrix size, vs ~9x for
+    # np.linalg.inv, which gets OOM-killed on modest machines at this size).
+    gram = (matrix.T @ matrix).toarray().astype(np.float32)
     diagonal = np.diag_indices(gram.shape[0])
     gram[diagonal] += l2
-    precision = np.linalg.pinv(gram)
-    weights = -precision / np.diag(precision)
-    weights[diagonal] = 0.0
+    popularity = np.asarray(matrix.sum(axis=0)).ravel()
+    progress.update(1)
+    factor = linalg.cho_factor(gram, overwrite_a=True, check_finite=False)
+    precision = linalg.cho_solve(
+        factor,
+        np.eye(n_items, dtype=np.float32),
+        overwrite_b=True,
+        check_finite=False,
+    )
+    del factor, gram
+    progress.update(2)
+    diag_values = np.diag(precision).copy()
+    precision /= -diag_values
+    precision[diagonal] = 0.0
+    progress.update(3)
+    progress.finish()
     save_artifact(
         output_path,
         model_type="ease",
         item_ids=item_ids,
-        weights=weights.astype(np.float32),
-        popularity=np.asarray(matrix.sum(axis=0)).ravel(),
+        weights=precision,
+        popularity=popularity,
         l2=np.array([l2], dtype=np.float32),
     )
 
@@ -261,12 +286,16 @@ def train_ease(
 def train_sequential(interactions: pd.DataFrame, item_ids: list, output_path: Path) -> None:
     item_index = {item_id: idx for idx, item_id in enumerate(item_ids)}
     transitions = np.zeros((len(item_ids), len(item_ids)), dtype=np.float32)
-    for _, group in interactions.groupby("user_id"):
+    grouped = interactions.groupby("user_id")
+    progress = ProgressBar(grouped.ngroups, label="[3/3] Sequential CF transitions")
+    for position, (_, group) in enumerate(grouped, start=1):
         if "timestamp" in group.columns:
             group = group.sort_values("timestamp")
         sequence = [item for item in group["item_id"].tolist() if item in item_index]
         for current, nxt in zip(sequence, sequence[1:]):
             transitions[item_index[current], item_index[nxt]] += 1.0
+        progress.update(position)
+    progress.finish()
 
     row_sums = transitions.sum(axis=1, keepdims=True)
     transitions = np.divide(
@@ -285,14 +314,18 @@ def train_sequential(interactions: pd.DataFrame, item_ids: list, output_path: Pa
     )
 
 
-def keep_topk(matrix: np.ndarray, k: int) -> None:
+def keep_topk(matrix: np.ndarray, k: int, progress: ProgressBar | None = None) -> None:
     if k <= 0 or k >= matrix.shape[1]:
+        if progress is not None:
+            progress.update(matrix.shape[0])
         return
     for row in range(matrix.shape[0]):
         keep = np.argpartition(matrix[row], -k)[-k:]
         mask = np.ones(matrix.shape[1], dtype=bool)
         mask[keep] = False
         matrix[row, mask] = 0.0
+        if progress is not None:
+            progress.update(row + 1)
 
 
 def save_artifact(
