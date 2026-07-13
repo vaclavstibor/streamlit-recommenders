@@ -22,7 +22,7 @@ def render_layout(
     selected_ids: set[str | int] | None = None,
     all_sections: list[str] | None = None,
     on_get_recommendations: Callable[[], None] | None = None,
-    n_cols: int = 4,
+    n_cols: int = 10,
     swipes_per_refresh: int = DEFAULT_SWIPES_PER_REFRESH,
 ) -> None:
     render_recommender_section(

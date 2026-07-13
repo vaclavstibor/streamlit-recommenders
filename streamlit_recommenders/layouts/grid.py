@@ -7,7 +7,7 @@ def grid(
     title: str = "Recommended for you",
     section: str = "default",
     columns: dict[str, str] | None = None,
-    n_cols: int = 4,
+    n_cols: int = 10,
     selected_ids: set[str | int] | None = None,
     all_sections: list[str] | None = None,
 ) -> None:

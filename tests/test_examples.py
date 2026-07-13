@@ -18,6 +18,7 @@ def test_polished_examples_exist():
     assert (EXAMPLES / "2_builtin_recommenders.py").exists()
     assert (EXAMPLES / "3_models_comparison_rows.py").exists()
     assert (EXAMPLES / "4_swipe_deck_cards.py").exists()
+    assert (EXAMPLES / "5_models_comparsion_grid.py").exists()
     assert (EXAMPLES / "artifact_recommender.py").exists()
     assert (EXAMPLES / "train_baseline_artifacts.py").exists()
 
