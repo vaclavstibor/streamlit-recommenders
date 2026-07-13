@@ -1,6 +1,0 @@
-# Runtime dependencies (canonical list: pyproject.toml)
-streamlit>=1.28
-pandas>=2.0
-plotly>=5.0
-pyyaml>=6.0
-numpy>=1.24

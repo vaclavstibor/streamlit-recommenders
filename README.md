@@ -1,21 +1,52 @@
-# streamlit_recommenders
+# streamlit-recommenders
 
-Lightweight Streamlit library for **interactive recommender demos**. You load data, bring a trained model or implement `get_recommendations()`, and the library handles UI, cache, session state, baseline comparison, and result inspection.
+> TODO: This readme will be shorter.
 
-| [Capabilities](docs/CAPABILITIES.md) | [Contracts](docs/CONTRACTS.md) | [Architecture](docs/ARCHITECTURE.md) |
-|---|---|---|
+**Turn a trained recommender into an interactive, inspectable web demo in a few lines of Python.**
+
+[![PyPI](https://img.shields.io/pypi/v/streamlit-recommenders.svg)](https://pypi.org/project/streamlit-recommenders/)
+[![Python](https://img.shields.io/pypi/pyversions/streamlit-recommenders.svg)](https://pypi.org/project/streamlit-recommenders/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+
+## Why streamlit-recommenders?
+
+Reproducibility in recommender systems research usually stops at aggregate offline metrics. Whether a model actually behaves sensibly — for individual users, across parameter settings, against baselines — stays invisible unless someone builds a demo, and building demos is frontend work most researchers don't want to do.
+
+`streamlit-recommenders` is a thin presentation layer between your recommendation model and an interactive [Streamlit](https://streamlit.io) app. You bring a trained model (or just a function returning ranked item ids); the library handles the UI, caching, session state, side-by-side model comparison, and light evaluation:
+
+- **Inspect per-user behavior** — pick any user, see their history and live recommendations, click items to simulate session feedback.
+- **Probe parameter sensitivity** — expose model parameters as sidebar widgets and watch recommendations react.
+- **Compare models side by side** — pass a dict of named models; all receive the same user and session context.
+- **Attach light evaluation** — ranking metrics (HR, Recall, NDCG, MRR, coverage), overlap heatmaps, score distributions, and markdown/LaTeX appendix content below the demo.
+- **Stay lightweight** — training frameworks (RecBole, Cornac, LensKit, ...) remain external; the demo loads only your exported artifacts or callable.
+
+The goal: make interactive model inspection a standard, low-effort artifact to publish alongside a paper.
+
+## Installation
+
+```bash
+pip install streamlit-recommenders
+```
+
+Extras:
+
+```bash
+pip install "streamlit-recommenders[training]"   # scipy, for the baseline training example
+pip install "streamlit-recommenders[goodbooks]"  # kagglehub, for the goodbooks-10k download
+pip install "streamlit-recommenders[dev]"        # pytest, build, twine
+```
+
+From source:
+
+```bash
+git clone https://github.com/vaclavstibor/streamlit-recommenders.git
+cd streamlit-recommenders
+pip install -e ".[dev,training]"
+```
 
 ## Quick start
 
-```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev,training]"
-python -m streamlit_recommenders.data.prepare --dataset ml-latest-small # or ml-latest, ml-25m, ml-32m; add --with-posters TMDB_API_KEY=... for posters
-.venv/bin/python examples/train_baseline_artifacts.py --data data/ml-latest-small # Additional training script for baseline models and exporting artifacts
-SR_DATA_DIR=data/ml-latest-small .venv/bin/streamlit run examples/3_models_comparison_rows.py # 3 models comparison (in rows layout) library demonstration
-```
-
-## Minimal demo
+Create `app.py`:
 
 ```python
 import streamlit_recommenders as sr
@@ -23,8 +54,12 @@ import streamlit_recommenders as sr
 ITEMS = sr.load_items("data/items.csv")
 INTERACTIONS = sr.load_interactions("data/interactions.csv")
 
+POPULARITY = INTERACTIONS["item_id"].value_counts().index.tolist()
+
 def get_recommendations(user_id, k, alpha=0.5, session_items=None, **params):
-    ...
+    """Return an ordered list of item ids (here: popularity, minus session items)."""
+    exclude = set(session_items or [])
+    return [item_id for item_id in POPULARITY if item_id not in exclude][:k]
 
 sr.run(
     get_recommendations=get_recommendations,
@@ -35,7 +70,13 @@ sr.run(
 )
 ```
 
-For compare mode, params can be global or scoped to a model label:
+Then run:
+
+```bash
+streamlit run app.py
+```
+
+Replace the function body with your model and you have an inspectable demo. For **compare mode**, pass a dict of models — params can be global or scoped to a model label:
 
 ```python
 sr.run(
@@ -54,7 +95,7 @@ sr.run(
 The library owns the interactive layer; you provide recommendations in whichever of these fits your workflow:
 
 1. **Bring your trained model / weights.** Export your model to plain arrays (or keep the object) and expose `get_recommendations()`. The lead demo uses `sr.ArtifactRecommender`, which loads exported `.npz` weights. Subclass `sr.BaseRecommender` (implement `scores()`) for custom trained models.
-2. **Train with a built-in definition.** Fit a reference recommender directly on your interactions: `model = sr.EASERecommender.from_interactions(train)` (or use ItemKNN or Sequential CF). `from_interactions` is the fit step. See `examples/2_builtin_recommenders.py`.
+2. **Train with a built-in definition.** Fit a reference recommender directly on your interactions: `model = sr.EASERecommender.from_interactions(train)` (or use ItemKNN or Sequential CF). `from_interactions` is the fit step.
 3. **Thin function adapter.** Skip classes entirely and write a plain `def get_recommendations(user_id, k, session_items=None, **params): ...` around any external scorer or API.
 
 All three return ordered item ids and drop straight into `sr.run(...)`.
@@ -78,7 +119,42 @@ The core data contract is pandas-first and intentionally small:
 | `users` | `user_id` | segment/profile columns |
 | `interactions`, `train`, `test` | `user_id`, `item_id` | `rating`, `timestamp` |
 
-Missing posters are fine: item cards fall back to a placeholder image. For MovieLens-style local work, keep protected data out of git under `data/ml-32m/`; see `data/README.md`.
+Missing posters are fine: item cards fall back to a bundled placeholder image. Keep protected data out of git under `data/<dataset-name>/`; see [data/README.md](https://github.com/vaclavstibor/streamlit-recommenders/blob/main/data/README.md).
+
+## Dataset preparation
+
+Two dataset families are supported out of the box, each one command away. A completion manifest prevents accidental re-downloads, and every prepared folder ends up in the same standard layout (`items.csv`, `interactions.csv`, ...) under `data/<dataset-name>/`.
+
+### Movies — MovieLens
+
+Supported variants: `ml-latest-small`, `ml-latest`, `ml-25m`, `ml-32m` (downloaded directly from GroupLens, no account needed):
+
+```bash
+python -m streamlit_recommenders.data.prepare --dataset ml-latest-small
+```
+
+MovieLens ships no artwork. To enrich items with TMDB posters and plot descriptions, get a free API key at [themoviedb.org](https://www.themoviedb.org/settings/api) and add `--with-posters`:
+
+```bash
+TMDB_API_KEY=your_key python -m streamlit_recommenders.data.prepare --dataset ml-latest-small --with-posters
+```
+
+`TMDB_BEARER_TOKEN` is accepted as an alternative; `--poster-limit 1000` caps the download for a quick first run. Re-running with `--with-posters` on an already-prepared dataset only performs the enrichment.
+
+### Books — goodbooks-10k
+
+Book covers ship as URLs inside the dataset itself, so no image enrichment is needed. The download comes from Kaggle via [`kagglehub`](https://github.com/Kaggle/kagglehub) (install it first — it is not a core dependency):
+
+```bash
+pip install "streamlit-recommenders[goodbooks]"
+python -m streamlit_recommenders.data.prepare --dataset goodbooks   # or goodbooks-10k
+```
+
+The dataset is public, so `kagglehub` usually needs no credentials; if your environment requires them, provide `~/.kaggle/kaggle.json` or set `KAGGLE_USERNAME` and `KAGGLE_KEY`. Alternatively, skip Kaggle entirely by placing `books.csv`/`ratings.csv` into `data/goodbooks-10k/` yourself.
+
+### Bring your own domain
+
+Any domain works as long as you produce the standard tables (see [Data standard](#data-standard)): put `items.csv` and `interactions.csv` in a folder and point the examples at it with `SR_DATA_DIR=data/your-dataset`.
 
 ## Layouts
 
@@ -88,7 +164,7 @@ Missing posters are fine: item cards fall back to a placeholder image. For Movie
 | `grid` | Catalog-style clickable poster grid with configurable columns |
 | `cards` | Swipe deck: one card at a time with Like / Dislike / Skip; refreshes after `swipes_per_refresh` swipes |
 
-`rows` and `grid` use clickable poster cards (hover title, description tooltip). Compare mode (`get_recommendations={...}`) always uses `rows`; the `cards` swipe deck is single-model. See `examples/4_swipe_deck_cards.py`.
+`rows` and `grid` use clickable poster cards (hover title, description tooltip). Compare mode (`get_recommendations={...}`) always uses `rows`; the `cards` swipe deck is single-model.
 
 ## Session UX
 
@@ -111,34 +187,63 @@ Use three baseline families by default:
 
 - **ItemKNN** for classic item-item collaborative filtering.
 - **EASE** for a strong shallow linear implicit-feedback baseline.
-- **Sequential CF / SASRec-style** for timestamped next-item behavior.
+- **Sequential CF** for timestamped next-item behavior.
 
 The package includes lightweight versions for demos. For full training, use any training code externally and export pure artifacts that match the same `get_recommendations()` contract.
 
-To train the three baseline artifacts and inspect them here:
+To train the three baseline artifacts and inspect them:
 
 ```bash
-pip install -e ".[training]"
-.venv/bin/python examples/train_baseline_artifacts.py --data data/<dataset-name>
-SR_DATA_DIR=data/<dataset-name> streamlit run examples/3_models_comparison_rows.py
+pip install "streamlit-recommenders[training]"
+
+# python -m streamlit_recommenders.data.prepare --dataset ml-latest-small 
+TMDB_API_KEY=627497851a1175886c7c521a2da19233 python -m streamlit_recommenders.data.prepare --dataset ml-latest-small --with-posters
+python examples/train_baseline_artifacts.py --data data/ml-latest-small
+SR_DATA_DIR=data/ml-latest-small streamlit run examples/3_models_comparison_rows.py
 ```
 
 The training script reads standard `items.csv`/`interactions.csv`, or raw MovieLens-style `movies.csv`/`ratings.csv`, creates train/test splits if needed, and writes pure `.npz` artifacts for ItemKNN, EASE, and Sequential CF. The Streamlit demo loads only those arrays, not the training code.
 
 ## Examples
 
+Examples live in the [GitHub repository](https://github.com/vaclavstibor/streamlit-recommenders/tree/main/examples) (not in the wheel):
+
 | File | Pattern |
 |------|---------|
 | `2_builtin_recommenders.py` | Way 2: fit built-in baselines on interactions (no artifacts) and compare |
 | `3_models_comparison_rows.py` | Lead demo (way 1): compare ItemKNN, EASE, and Sequential CF artifacts in rows layout |
 | `4_swipe_deck_cards.py` | Single-model swipe deck (cards layout) with like/dislike/skip |
+| `5_models_comparsion_grid.py` | Grid layout with a sidebar model selector (one artifact at a time) |
 | `train_baseline_artifacts.py` | Train/export SciPy/NumPy baseline artifacts under `data/<dataset-name>/artifacts` |
 | `artifact_recommender.py` | Example glue: `load_artifact_models` + re-export of `sr.ArtifactRecommender` |
 
-## Not in scope
+## Documentation
 
-Training pipelines, production serving, and heavy model libraries as required dependencies. RecBole, Cornac, RecPack, and LensKit should stay external or optional extras so the core library remains lightweight.
+- [Capabilities](https://github.com/vaclavstibor/streamlit-recommenders/blob/main/docs/CAPABILITIES.md) — full public API overview
+- [Contracts](https://github.com/vaclavstibor/streamlit-recommenders/blob/main/docs/CONTRACTS.md) — data shapes and function signatures
+- [Architecture](https://github.com/vaclavstibor/streamlit-recommenders/blob/main/docs/ARCHITECTURE.md) — module flow
+
+## Known limitations
+
+- Single-page Streamlit applications; no production serving or user-study management.
+- The data contract is pandas-based.
+- Layout rendering resolves item columns through `ColumnMap` defaults (`item_id`, `title`, `image_url`, `description`). Custom `ColumnMap`s passed to `Dataset` are not automatically threaded into recommenders and layouts — pass `item_columns=` to `sr.run` instead.
+- Training pipelines and heavy model libraries stay out of scope: RecBole, Cornac, RecPack, and LensKit should remain external so the core library stays lightweight.
+
+## Citation
+
+If you use `streamlit-recommenders` in your research, please cite:
+
+```bibtex
+@software{stibor2026streamlitrecommenders,
+  author  = {Stibor, V{\'a}clav and Van{\v c}ura, Vojt{\v e}ch and Pe{\v s}ka, Ladislav},
+  title   = {StreamlitRecommenders: Towards Recommendation Inspectability as a New Reproducibility Standard},
+  year    = {2026},
+  url     = {https://github.com/vaclavstibor/streamlit-recommenders},
+  version = {0.1.0}
+}
+```
 
 ## License
 
-TBD
+Apache License 2.0 — see [LICENSE](https://github.com/vaclavstibor/streamlit-recommenders/blob/main/LICENSE).

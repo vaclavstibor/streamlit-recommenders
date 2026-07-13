@@ -4,6 +4,13 @@ version = "0.1.0"
 description = "Lightweight Streamlit library for interactive recommender system demos"
 readme = "README.md"
 requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [
+    { name = "Václav Stibor" },
+    { name = "Vojtěch Vančura" },
+    { name = "Ladislav Peška" },
+]
 keywords = ["streamlit", "recommender-systems", "recsys", "demo"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -12,6 +19,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
@@ -25,15 +33,24 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "build", "twine"]
 training = ["scipy"]
+goodbooks = ["kagglehub"]
+
+[project.urls]
+Homepage = "https://github.com/vaclavstibor/streamlit-recommenders"
+Repository = "https://github.com/vaclavstibor/streamlit-recommenders"
+Issues = "https://github.com/vaclavstibor/streamlit-recommenders/issues"
 
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["streamlit_recommenders*"]
 exclude = ["tests*", "examples*", "scripts*"]
+
+[tool.setuptools.package-data]
+streamlit_recommenders = ["assets/*.png"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

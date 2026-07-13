@@ -8,9 +8,10 @@ dist/
 .cache/
 .DS_Store
 .cursor/
-notes/
+notes/*
+!notes/paper.tex
 data/*
-!data/static/
-!data/static/img/
-!data/static/img/poster_not_available.png
 !data/README.md
+
+.claude/
+.devcontainer/

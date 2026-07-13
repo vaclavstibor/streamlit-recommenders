@@ -2,7 +2,7 @@
 
 This directory is for local datasets and generated artifacts that should not be committed.
 
-## MovieLens preprocessing
+## Movies — MovieLens preprocessing
 
 Use the library CLI to download a MovieLens ZIP, convert it to the local schema, and optionally fetch TMDB metadata/posters:
 
@@ -12,6 +12,16 @@ TMDB_API_KEY=... python -m streamlit_recommenders.data.prepare --dataset ml-32m 
 ```
 
 Supported datasets are `ml-latest-small`, `ml-latest`, `ml-25m`, and `ml-32m`. The preparation module writes `items.csv`, `interactions.csv`, raw source CSVs, optional poster files, and a completion manifest under `data/<dataset>/`. Poster downloads require `TMDB_API_KEY` or `TMDB_BEARER_TOKEN`; use `--poster-limit 1000` for a smaller first run.
+
+## Books — goodbooks-10k preprocessing
+
+Book covers ship as URLs inside the dataset, so no enrichment step is needed. The download uses Kaggle via `kagglehub` (`pip install "streamlit-recommenders[goodbooks]"`); alternatively place `books.csv`/`ratings.csv` into `data/goodbooks-10k/` manually:
+
+```bash
+python -m streamlit_recommenders.data.prepare --dataset goodbooks
+```
+
+The dataset is public, so `kagglehub` usually needs no credentials; if your environment requires them, provide `~/.kaggle/kaggle.json` or set `KAGGLE_USERNAME` and `KAGGLE_KEY`.
 
 Recommended layout for any local recommender dataset:
 

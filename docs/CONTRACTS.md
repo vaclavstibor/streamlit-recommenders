@@ -21,7 +21,7 @@ sr.Dataset(
 | `users` | `user_id` | segment/profile columns |
 | `interactions` / `train` / `test` | `user_id`, `item_id` | `rating`, `timestamp` |
 
-Use `ColumnMap` when your data uses different names. `validate_dataset()` checks required columns and id consistency.
+Use `ColumnMap` when your data uses different names. `validate_dataset()` checks required columns and id consistency. Note: custom `ColumnMap`s are honored by validation and item display, but not automatically threaded into the built-in recommenders and layouts — pass `item_columns=` to `sr.run` for display names, or rename columns to the defaults for the built-ins.
 
 ### Item metadata
 
@@ -39,7 +39,7 @@ For local MovieLens-derived work, use a gitignored path such as:
 
 ```text
 data/
-  ml-32m/
+  <dataset-name>/
     items.csv
     users.csv
     interactions.csv

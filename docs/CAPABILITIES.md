@@ -5,13 +5,13 @@ Practical API overview. Formal contracts: [CONTRACTS.md](CONTRACTS.md).
 ## Install & run
 
 ```bash
-pip install -e ".[dev,training]"
+pip install streamlit-recommenders          # or, from a clone: pip install -e ".[dev,training]"
 python -m streamlit_recommenders.data.prepare --dataset ml-latest-small # or ml-latest, ml-25m, ml-32m; add --with-posters (needs TMDB_API_KEY)
-.venv/bin/python examples/train_baseline_artifacts.py --data data/ml-latest-small # Additional training script for baseline models and exporting artifacts
-SR_DATA_DIR=data/ml-latest-small .venv/bin/streamlit run examples/3_models_comparison_rows.py # 3 models comparison (in rows layout) library demonstration
+python examples/train_baseline_artifacts.py --data data/ml-latest-small # Additional training script for baseline models and exporting artifacts
+SR_DATA_DIR=data/ml-latest-small streamlit run examples/3_models_comparison_rows.py # 3 models comparison (in rows layout) library demonstration
 ```
 
-Requires **Python ≥3.10** and the project venv.
+Requires **Python ≥3.10**.
 
 ## Public API
 
@@ -80,7 +80,7 @@ Only `item_id` is required for `items`. Movie demos should prefer `title`, `imag
 Load a prepared folder (resolves poster paths to local files) with:
 
 ```python
-items, train, test = sr.load_local_dataset("data/ml-32m-filtered")
+items, train, test = sr.load_local_dataset("data/ml-latest-small")
 ```
 
 ## Data preparation
