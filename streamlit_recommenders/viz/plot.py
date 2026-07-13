@@ -1,9 +1,16 @@
 import pandas as pd
 import plotly.express as px
-import plotly.io as pio
 import streamlit as st
 
-pio.templates.default = "plotly_white"
+
+def _style(fig, **overrides) -> None:
+    layout = {
+        "template": "plotly_white",
+        "margin": dict(l=20, r=20, t=40, b=20),
+        "paper_bgcolor": "rgba(0,0,0,0)",
+    }
+    layout.update(overrides)
+    fig.update_layout(**layout)
 
 
 def plot(
@@ -32,7 +39,7 @@ def plot(
             else px.bar(df, x=x, y=y, title=title)
         )
 
-    fig.update_layout(margin=dict(l=20, r=20, t=40, b=20), paper_bgcolor="rgba(0,0,0,0)")
+    _style(fig)
     st.plotly_chart(fig, width="stretch")
 
 
@@ -55,7 +62,7 @@ def plot_metric_comparison(
         barmode="group",
         title=title,
     )
-    fig.update_layout(margin=dict(l=20, r=20, t=40, b=20), paper_bgcolor="rgba(0,0,0,0)")
+    _style(fig)
     st.plotly_chart(fig, width="stretch")
 
 
@@ -70,7 +77,7 @@ def plot_ranked_items(
         st.info("No ranked items to plot.")
         return
     fig = px.bar(df, x=title_col, y=score_col, title=title)
-    fig.update_layout(margin=dict(l=20, r=20, t=40, b=20), paper_bgcolor="rgba(0,0,0,0)")
+    _style(fig)
     st.plotly_chart(fig, width="stretch")
 
 
@@ -84,7 +91,7 @@ def plot_score_distribution(
         st.info("No scores to plot.")
         return
     fig = px.histogram(df, x=score_col, title=title)
-    fig.update_layout(margin=dict(l=20, r=20, t=40, b=20), paper_bgcolor="rgba(0,0,0,0)")
+    _style(fig)
     st.plotly_chart(fig, width="stretch")
 
 
@@ -116,10 +123,10 @@ def plot_overlap_heatmap(
         color_continuous_scale="Blues",
         title=title,
     )
-    fig.update_layout(
+    _style(
+        fig,
         margin=dict(l=20, r=20, t=50, b=20),
         xaxis_title="Model",
         yaxis_title="Model",
-        paper_bgcolor="rgba(0,0,0,0)",
     )
     st.plotly_chart(fig, width="stretch")

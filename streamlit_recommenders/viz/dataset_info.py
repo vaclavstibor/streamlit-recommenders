@@ -24,9 +24,6 @@ def dataset_info(
     with st.expander(title, expanded=expanded):
         table(_dataset_stats(items, interactions, users, user_id_col=user_id_col))
 
-        st.caption("Item metadata columns")
-        st.write(", ".join(items.columns.astype(str).tolist()))
-
         genre_col = next((col for col in genre_cols if col in items.columns), None)
         categorical_cols = [
             col
