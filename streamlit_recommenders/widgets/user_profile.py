@@ -35,11 +35,17 @@ def render_user_profile(
     with st.sidebar.expander("Profile summary", expanded=False):
         if is_session_user(user_id):
             st.caption("Build your taste by selecting items in the recommendation rows.")
-            st.metric("Session picks", len(session_items))
+            st.markdown(f"Session picks: **{len(session_items)}**")
             return
 
         hist = interactions.loc[interactions["user_id"] == user_id]
-        st.metric("Past interactions", len(hist))
-        st.metric("Session additions", len(session_items))
+        st.markdown(f"Past interactions: **{len(hist):,}**")
+        st.markdown(f"Session additions: **{len(session_items)}**")
+        if "rating" in hist.columns and len(hist):
+            st.markdown(f"Average rating: **{hist['rating'].mean():.1f}**")
+        if "timestamp" in hist.columns and len(hist) > 1:
+            span_days = (hist["timestamp"].max() - hist["timestamp"].min()) / 86_400
+            if span_days >= 1:
+                st.markdown(f"Active span: **{span_days:,.0f} days**")
         if session_items:
             st.caption("New picks this session are merged into recommendations.")
