@@ -108,8 +108,9 @@ def enrich_from_tmdb(
                 "item_id": row["item_id"],
                 "description": metadata.get("overview", "") or "",
                 "release_date": metadata.get("release_date", "") or "",
+                # Root-relative so the dataset folder stays portable; the
+                # loader resolves it against the dataset root at load time.
                 "poster_path": _relative_to(data_dir, local_poster) if local_poster else "",
-                "image_url": local_poster,
             }
         )
         bar.update(index)
@@ -127,8 +128,13 @@ def enrich_from_tmdb(
 def write_completeness_report(items: pd.DataFrame, data_dir: Path) -> pd.DataFrame:
     """Write and summarize per-item missing poster/description flags."""
     def missing_poster(row) -> int:
-        value = row.get("image_url", "")
-        return int(pd.isna(value) or not str(value).strip() or not Path(str(value)).exists())
+        value = row.get("poster_path", "")
+        if pd.isna(value) or not str(value).strip():
+            return 1
+        path = Path(str(value))
+        if not path.is_absolute():
+            path = data_dir / path
+        return int(not path.exists())
 
     def missing_description(row) -> int:
         value = row.get("description", "")

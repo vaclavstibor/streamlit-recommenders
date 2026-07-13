@@ -1,24 +1,11 @@
 from typing import Any
-from pathlib import Path
 
 import pandas as pd
 
 from streamlit_recommenders.data import ColumnMap
+from streamlit_recommenders.data.media import item_placeholder
 
 DEFAULT_COLUMNS = ColumnMap().item_columns()
-
-_PLACEHOLDER_URL = "https://placehold.co/130x195/e5e7eb/6b7280?text=Item"
-_PLACEHOLDER_FILE = (
-    Path(__file__).resolve().parents[2]
-    / "data"
-    / "static"
-    / "img"
-    / "poster_not_available.png"
-)
-
-
-def item_placeholder() -> str:
-    return str(_PLACEHOLDER_FILE) if _PLACEHOLDER_FILE.exists() else _PLACEHOLDER_URL
 
 
 def resolve_columns(columns: dict[str, str] | None) -> dict[str, str]:

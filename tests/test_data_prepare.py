@@ -59,6 +59,35 @@ def test_resolve_image_urls_falls_back_to_placeholder(tmp_path):
     assert resolved.iloc[1] != str(poster)  # placeholder fallback
 
 
+def test_resolve_image_urls_passes_remote_urls_through(tmp_path):
+    items = pd.DataFrame(
+        {"item_id": [1], "image_url": ["https://example.com/cover.jpg"]}
+    )
+
+    resolved = resolve_image_urls(items, tmp_path)
+
+    assert resolved.iloc[0] == "https://example.com/cover.jpg"
+
+
+def test_resolve_image_urls_falls_through_broken_image_url(tmp_path):
+    # image_url written relative to a different working directory must not
+    # shadow a valid root-relative poster_path.
+    poster = tmp_path / "posters" / "10.jpg"
+    poster.parent.mkdir(parents=True)
+    poster.write_bytes(b"fake")
+    items = pd.DataFrame(
+        {
+            "item_id": [1],
+            "image_url": ["data/some-dataset/posters/10.jpg"],
+            "poster_path": ["posters/10.jpg"],
+        }
+    )
+
+    resolved = resolve_image_urls(items, tmp_path)
+
+    assert resolved.iloc[0] == str(poster)
+
+
 def test_load_local_dataset(tmp_path):
     poster = tmp_path / "posters" / "10.jpg"
     poster.parent.mkdir(parents=True)
@@ -82,12 +111,13 @@ def test_load_local_dataset(tmp_path):
 
 
 def test_completeness_report_counts_gaps(tmp_path):
-    poster = tmp_path / "10.jpg"
+    poster = tmp_path / "posters" / "10.jpg"
+    poster.parent.mkdir(parents=True)
     poster.write_bytes(b"fake")
     items = pd.DataFrame(
         {
             "item_id": [1, 2],
-            "image_url": [str(poster), ""],
+            "poster_path": ["posters/10.jpg", ""],
             "description": ["plot", ""],
         }
     )
