@@ -1,3 +1,4 @@
+import random
 from collections.abc import Callable
 from typing import Any
 
@@ -16,6 +17,7 @@ from streamlit_recommenders.runtime.compare import (
 )
 from streamlit_recommenders.runtime.seen import SESSION_USER_ID, SESSION_USER_LABEL
 from streamlit_recommenders.runtime.state import (
+    get_cold_start_seed,
     get_displayed_recs,
     get_selected_ids,
     get_selections,
@@ -33,6 +35,9 @@ from streamlit_recommenders.widgets.params import (
 )
 from streamlit_recommenders.widgets.profile_strip import render_profile_strip
 from streamlit_recommenders.widgets.user_profile import history_item_ids, render_user_profile
+
+# Cold-start sampling: how many times k to request before sampling k.
+_COLD_START_POOL_FACTOR = 5
 
 
 def load_items(path: str, id_col: str = "item_id") -> pd.DataFrame:
@@ -121,24 +126,42 @@ def run(
         "Selected this session",
         columns=item_columns,
         empty_hint="Click item cards below, then refresh recommendations.",
+        selectable=True,
+        all_sections=all_sections,
     )
 
+    def _compute_recommendations(label: str, get_recommendations_fn: Callable[..., list]) -> list:
+        current_selected = get_selected_ids()
+        section_selections = get_selections(label)
+        params_for_label = {**resolved, **model_params.get(label, {})}
+        # The session user's empty profile would otherwise always show the
+        # same deterministic fallback; sample from a larger candidate pool
+        # so each fresh session starts with varied items to react to.
+        cold_start = (
+            user_id == SESSION_USER_ID
+            and not current_selected
+            and not section_selections
+        )
+        request_k = k * _COLD_START_POOL_FACTOR if cold_start else k
+        rec_ids = cached_get_recommendations(
+            get_recommendations_fn,
+            user_id,
+            request_k,
+            params_for_label,
+            session_items=current_selected,
+            selections=section_selections,
+            excluded_item_ids=get_swipe_seen_ids(label) if row_layout == "cards" else None,
+        )
+        if cold_start and len(rec_ids) > k:
+            # Seed per section: each compared model starts with a different
+            # sample, so the init state is not the same list repeated n times.
+            rng = random.Random(f"{get_cold_start_seed()}:{label}")
+            rec_ids = rng.sample(list(rec_ids), k)
+        return rec_ids
+
     def _refresh_all_recommendations() -> None:
-        fresh_selected_ids = get_selected_ids()
         for label, get_recommendations_fn in pairs:
-            params_for_label = {**resolved, **model_params.get(label, {})}
-            set_displayed_recs(
-                label,
-                cached_get_recommendations(
-                    get_recommendations_fn,
-                    user_id,
-                    k,
-                    params_for_label,
-                    session_items=fresh_selected_ids,
-                    selections=get_selections(label),
-                    excluded_item_ids=get_swipe_seen_ids(label) if row_layout == "cards" else None,
-                ),
-            )
+            set_displayed_recs(label, _compute_recommendations(label, get_recommendations_fn))
 
     if compare:
         st.button(
@@ -149,41 +172,16 @@ def run(
         )
 
     for label, get_recommendations_fn in pairs:
-        section_selections = get_selections(label)
-
         rec_ids = get_displayed_recs(label)
         if rec_ids is None:
-            params_for_label = {**resolved, **model_params.get(label, {})}
-            rec_ids = cached_get_recommendations(
-                get_recommendations_fn,
-                user_id,
-                k,
-                params_for_label,
-                session_items=selected_ids,
-                selections=section_selections,
-                excluded_item_ids=get_swipe_seen_ids(label) if row_layout == "cards" else None,
-            )
+            rec_ids = _compute_recommendations(label, get_recommendations_fn)
             set_displayed_recs(label, rec_ids)
 
         def _refresh_get_recommendations(
             label: str = label,
             get_recommendations_fn: Callable[..., list] = get_recommendations_fn,
         ) -> None:
-            fresh_selected_ids = get_selected_ids()
-            fresh_selections = get_selections(label)
-            params_for_label = {**resolved, **model_params.get(label, {})}
-            set_displayed_recs(
-                label,
-                cached_get_recommendations(
-                    get_recommendations_fn,
-                    user_id,
-                    k,
-                    params_for_label,
-                    session_items=fresh_selected_ids,
-                    selections=fresh_selections,
-                    excluded_item_ids=get_swipe_seen_ids(label) if row_layout == "cards" else None,
-                ),
-            )
+            set_displayed_recs(label, _compute_recommendations(label, get_recommendations_fn))
 
         render_layout(
             row_layout,

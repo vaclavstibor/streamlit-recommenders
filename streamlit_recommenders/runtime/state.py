@@ -1,3 +1,5 @@
+import random
+
 import streamlit as st
 
 from streamlit_recommenders.runtime.cache import hash_params
@@ -16,7 +18,16 @@ def init_session_state() -> None:
             "swipe_counts": {},
             "swipe_skipped": {},
             "run_context_hash": None,
+            "cold_start_seed": None,
         }
+
+
+def get_cold_start_seed() -> int:
+    """Per-session seed for cold-start sampling; new on every page load."""
+    state = get_state()
+    if state.get("cold_start_seed") is None:
+        state["cold_start_seed"] = random.randrange(2**32)
+    return state["cold_start_seed"]
 
 
 def get_state() -> dict:

@@ -30,8 +30,11 @@ class BaseRecommender:
         user_id: str | int,
         k: int,
         session_items: list | None = None,
+        selections: list[dict] | None = None,
         **params,
     ) -> list:
+        # ``selections`` carries UI feedback metadata; subclasses that want it
+        # should override ``get_recommendations``.
         seen = effective_seen(getattr(self, "interactions", None), user_id, session_items)
         scores = self.scores(user_id, session_items=session_items, **params)
         return rank_scores(scores, self.item_ids, seen, k)

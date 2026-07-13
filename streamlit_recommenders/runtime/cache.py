@@ -11,7 +11,7 @@ from streamlit_recommenders.models.adapter import call_get_recommendations
 
 def hash_params(params: dict[str, Any]) -> str:
     payload = json.dumps(params, sort_keys=True, default=str)
-    return hashlib.md5(payload.encode()).hexdigest()
+    return hashlib.md5(payload.encode(), usedforsecurity=False).hexdigest()
 
 
 @st.cache_data(show_spinner=False)
@@ -79,8 +79,20 @@ def get_recommendations(
 
 
 def stable_get_recommendations_id(get_recommendations_fn: Callable[..., list]) -> str:
+    """Identity used in the Streamlit cache key for a recommender callable.
+
+    Bound methods stay stable across reruns as long as the owning model
+    instance is reused (e.g. constructed under ``st.cache_resource``). Plain
+    callables fall back to object identity, so closures recreated on every
+    rerun miss the cache by design (safe, but slower) — prefer module-level
+    functions or cached model objects.
+    """
     owner = getattr(get_recommendations_fn, "__self__", None)
     func = getattr(get_recommendations_fn, "__func__", None)
     if owner is not None and func is not None:
         return f"{id(owner)}:{func.__module__}.{func.__qualname__}"
-    return str(id(get_recommendations_fn))
+    qualname = getattr(
+        get_recommendations_fn, "__qualname__", type(get_recommendations_fn).__name__
+    )
+    module = getattr(get_recommendations_fn, "__module__", "")
+    return f"{id(get_recommendations_fn)}:{module}.{qualname}"
