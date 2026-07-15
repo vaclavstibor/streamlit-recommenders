@@ -1,13 +1,21 @@
 """Lead demo: compare three trained recommender artifacts in row layout."""
 
+import os
+
 import pandas as pd
 import streamlit as st
 import streamlit_recommenders as sr
 
-from artifact_recommender import load_artifact_dataset, load_artifact_models
-
-ITEMS, TRAIN, TEST = load_artifact_dataset()
-models = load_artifact_models(TRAIN)
+DATA_DIR = os.environ.get("SR_DATA_DIR", "data/ml-latest-small")
+ITEMS, TRAIN, TEST = sr.load_local_dataset(DATA_DIR)
+models = sr.load_artifacts(
+    {
+        "ItemKNN": f"{DATA_DIR}/artifacts/itemknn.npz",
+        "EASE": f"{DATA_DIR}/artifacts/ease.npz",
+        "Sequential CF": f"{DATA_DIR}/artifacts/sequential_cf.npz",
+    },
+    TRAIN,
+)
 EVAL_USER_CAP = 500
 PARAMS = {
     "num_recs": sr.selectbox("Number of recommendations", [10, 20, 30], index=1),
@@ -18,13 +26,21 @@ PARAMS = {
 
 
 def intro() -> None:
+    n_items = len(ITEMS)
+    n_interactions = len(TRAIN)
+    n_users = TRAIN["user_id"].nunique()
+    n_desc = int(ITEMS["description"].notna().sum()) if "description" in ITEMS.columns else 0
+    n_posters = int(ITEMS["poster_path"].notna().sum()) if "poster_path" in ITEMS.columns else 0
     sr.markdown(
         "### Interactive Recommender Comparison\n"
         "This page demonstrates the intended use of `streamlit-recommenders` -- "
         "a researcher brings trained models or exported artifacts, while the library "
-        "owns the interactive UI, session profile, caching, and side-by-side comparison."
+        "owns the interactive UI, session profile, caching, and side-by-side comparison. "
         "Click movies to build a session profile, then use **Get Recommendations** "
-        "to refresh all models on the same evidence.\n\n"        
+        "to refresh all models on the same evidence.\n\n"
+        f"**Dataset:** MovieLens `ml-latest-small` -- {n_items:,} movies and "
+        f"{n_interactions:,} ratings from {n_users:,} users, enriched with TMDB metadata "
+        f"({n_desc:,} plot descriptions, {n_posters:,} posters).\n\n"
         "#### ItemKNN\n"
         "A classic item-item collaborative filtering baseline. Given a user/session "
         "interaction vector, scores are computed as:"
@@ -87,36 +103,32 @@ def appendix() -> None:
         sr.markdown(
             "Jaccard overlap shows whether models converge on similar items "
             "or expose genuinely different recommendation behavior for the current profile. "
-            "Darker cells mean stronger agreement between two models."
+            "Darker cells mean stronger agreement between two models. This reads the items "
+            "each row is actually displaying (`sr.displayed_items`), so it stays consistent "
+            "with what you see above."
         )
-        recs = {
-            name: model.get_recommendations(
-                current_user,
-                k,
-                session_items=selected,
-                **current_model_params(name),
-            )
-            for name, model in models.items()
-        }
+        recs = {name: sr.displayed_items(name) for name in models}
         overlap = sr.recommendation_overlap_matrix(recs)
         sr.plot_overlap_heatmap(overlap, title=f"Top-{k} recommendation overlap")
 
     with st.expander("Top scores for current profile", expanded=False):
         sr.markdown(
-            "Each tab opens one model's score surface for the active user/session "
-            "profile. It is a quick diagnostic for whether a row is driven by specific "
-            "evidence or by a popularity-style fallback. Raw scores are model-specific "
-            "and not comparable across tabs."
+            "Each tab shows the model's scores for the items currently displayed in its "
+            "row above, so the diagnostic matches what you see. It reveals whether a row is "
+            "driven by specific evidence or a popularity-style fallback. Raw scores are "
+            "model-specific and not comparable across tabs."
         )
         for tab, (name, model) in zip(st.tabs(list(models)), models.items()):
             with tab:
+                displayed = set(sr.displayed_items(name))
                 scores = model.score_frame(
                     current_user,
                     session_items=selected,
                     items=ITEMS,
                     **current_model_params(name),
-                ).head(12)
-                sr.plot_ranked_items(scores, title=f"{name} top scored items")
+                )
+                scores = scores[scores["item_id"].isin(displayed)].head(12)
+                sr.plot_ranked_items(scores, title=f"{name} displayed items by score")
 
     if TEST is not None and len(TEST):
         with st.expander("Offline evaluation on the held-out split", expanded=False):
