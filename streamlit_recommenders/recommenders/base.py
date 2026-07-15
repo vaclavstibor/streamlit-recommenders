@@ -1,3 +1,5 @@
+"""Base class for score-based recommenders."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -12,6 +14,11 @@ class BaseRecommender:
 
     Subclasses provide ``scores()`` returning one value per ``self.item_ids``;
     the base ranks unseen items via the common seen-filtering + top-k logic.
+
+    Attributes:
+        interactions: Optional interactions DataFrame used to determine which
+            items a user has already seen.
+        item_ids: Ordered item ids aligned with the score vector.
     """
 
     interactions: pd.DataFrame | None
@@ -23,6 +30,19 @@ class BaseRecommender:
         session_items: list | None = None,
         **params,
     ) -> np.ndarray:
+        """Return one score per item in ``self.item_ids`` for ``user_id``.
+
+        Args:
+            user_id: Id of the user to score items for.
+            session_items: Items selected during the current session.
+            **params: Model-specific scoring parameters.
+
+        Returns:
+            A score array aligned with ``self.item_ids``.
+
+        Raises:
+            NotImplementedError: Always; subclasses must implement scoring.
+        """
         raise NotImplementedError
 
     def get_recommendations(
@@ -33,6 +53,19 @@ class BaseRecommender:
         selections: list[dict] | None = None,
         **params,
     ) -> list:
+        """Return the top-``k`` recommended item ids, excluding seen items.
+
+        Args:
+            user_id: Id of the user to recommend for.
+            k: Number of item ids to return.
+            session_items: Items selected during the current session.
+            selections: UI feedback metadata; ignored here, subclasses that
+                want it should override this method.
+            **params: Model-specific scoring parameters passed to ``scores()``.
+
+        Returns:
+            Up to ``k`` recommended item ids ranked by descending score.
+        """
         # ``selections`` carries UI feedback metadata; subclasses that want it
         # should override ``get_recommendations``.
         seen = effective_seen(getattr(self, "interactions", None), user_id, session_items)
