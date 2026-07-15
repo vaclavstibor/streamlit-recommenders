@@ -1,3 +1,5 @@
+"""Layout registry and dispatch for rendering recommendation sections."""
+
 from collections.abc import Callable
 
 from streamlit_recommenders.layouts.cards import cards
@@ -25,6 +27,25 @@ def render_layout(
     n_cols: int = 10,
     swipes_per_refresh: int = DEFAULT_SWIPES_PER_REFRESH,
 ) -> None:
+    """Render a recommendation section using the named layout.
+
+    Args:
+        layout: Layout name; one of ``"rows"``, ``"grid"``, or ``"cards"``.
+        items: DataFrame of item metadata to draw from.
+        rec_ids: Ordered item ids to display.
+        title: Heading shown above the section.
+        section: Stable section identifier for state keys; defaults to
+            ``title`` when omitted.
+        columns: Optional overrides mapping logical fields to DataFrame
+            column names.
+        selected_ids: Ids already added to the session profile.
+        all_sections: Every section id on the page, used when recording
+            interactions across sections.
+        on_get_recommendations: Callback invoked by the section's action
+            button (or swipe auto-refresh).
+        n_cols: Column count for the grid layout.
+        swipes_per_refresh: Swipes before the cards deck auto-refreshes.
+    """
     render_recommender_section(
         layout,
         items,

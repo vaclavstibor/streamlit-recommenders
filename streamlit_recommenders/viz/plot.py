@@ -1,9 +1,12 @@
+"""Plotly-backed chart helpers rendered into Streamlit."""
+
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 
 
 def _style(fig, **overrides) -> None:
+    """Apply the shared chart layout to ``fig``, overriding with ``overrides``."""
     layout = {
         "template": "plotly_white",
         "margin": dict(l=20, r=20, t=40, b=20),
@@ -20,6 +23,18 @@ def plot(
     color: str | None = None,
     title: str | None = None,
 ) -> None:
+    """Render a chart chosen from ``df`` and column types.
+
+    Picks a scatter when ``color`` is set, a line for numeric ``y``, else a bar.
+    Missing ``x``/``y`` default to the first column and first numeric column.
+
+    Args:
+        df: Data to plot.
+        x: Column for the x axis; defaults to the first column.
+        y: Column for the y axis; defaults to the first numeric column.
+        color: Column used to color a scatter plot.
+        title: Chart title.
+    """
     if df.empty:
         st.info("Nothing to plot.")
         return
@@ -51,6 +66,15 @@ def plot_metric_comparison(
     model_col: str = "model",
     title: str = "Metric comparison",
 ) -> None:
+    """Render a grouped bar chart comparing metric values across models.
+
+    Args:
+        df: Long-form metrics table.
+        metric_col: Column naming each metric (x axis).
+        value_col: Column holding metric values (y axis).
+        model_col: Column identifying each model (bar color).
+        title: Chart title.
+    """
     if df.empty:
         st.info("No metrics to plot.")
         return
@@ -73,6 +97,14 @@ def plot_ranked_items(
     score_col: str = "score",
     title: str = "Ranked items",
 ) -> None:
+    """Render a bar chart of item scores.
+
+    Args:
+        df: Ranked items table.
+        title_col: Column holding item titles (x axis).
+        score_col: Column holding scores (y axis).
+        title: Chart title.
+    """
     if df.empty:
         st.info("No ranked items to plot.")
         return
@@ -87,6 +119,13 @@ def plot_score_distribution(
     score_col: str = "score",
     title: str = "Score distribution",
 ) -> None:
+    """Render a histogram of recommendation scores.
+
+    Args:
+        df: Table containing scores.
+        score_col: Column holding the scores to bin.
+        title: Chart title.
+    """
     if df.empty:
         st.info("No scores to plot.")
         return
@@ -96,6 +135,15 @@ def plot_score_distribution(
 
 
 def recommendation_overlap_matrix(recommendations: dict[str, list]) -> pd.DataFrame:
+    """Compute a pairwise Jaccard overlap matrix between recommendation lists.
+
+    Args:
+        recommendations: Mapping of model name to its recommended item ids.
+
+    Returns:
+        A square DataFrame indexed and columned by model name whose cells hold
+        the Jaccard similarity of each model pair (0.0 when both are empty).
+    """
     names = list(recommendations)
     matrix = pd.DataFrame(1.0, index=names, columns=names)
     for left in names:
@@ -112,6 +160,13 @@ def plot_overlap_heatmap(
     *,
     title: str = "Recommendation overlap",
 ) -> None:
+    """Render an overlap matrix as an annotated heatmap.
+
+    Args:
+        overlap: Square overlap matrix, e.g. from
+            :func:`recommendation_overlap_matrix`.
+        title: Chart title.
+    """
     if overlap.empty:
         st.info("No recommendation overlap to plot.")
         return

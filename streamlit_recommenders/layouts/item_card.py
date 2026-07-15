@@ -1,3 +1,10 @@
+"""Poster-card rendering and injected CSS for item, profile, and swipe views.
+
+Provides the low-level widgets and style injection used by the layouts:
+selectable poster buttons, non-interactive display posters, and the
+one-card swipe deck.
+"""
+
 from __future__ import annotations
 
 import base64
@@ -9,23 +16,31 @@ from pathlib import Path
 import streamlit as st
 
 from streamlit_recommenders.layouts._helpers import item_placeholder
-from streamlit_recommenders.runtime.keys import item_action_key
+from streamlit_recommenders.runtime.keys import item_action_key, section_id
 from streamlit_recommenders.runtime.state import record_selection
 
 DEFAULT_GRID_COLS = 4
 CARD_WIDTH_PX = 120
 PROFILE_KEY_PREFIX = "streamlit_recommenders-profile-"
+GRID_KEY_PREFIX = "streamlit_recommenders-grid-"
 SWIPE_KEY_PREFIX = "streamlit_recommenders-swipe-"
 SWIPE_POSTER_WIDTH_PX = 160
 SWIPE_DECK_MAX_WIDTH_PX = 560
 
 
 def _css_url(url: str) -> str:
+    """Resolve an image url and escape it for safe use inside CSS ``url('')``."""
     return html.escape(_image_css_url(str(url)), quote=True).replace("'", "%27")
 
 
 @lru_cache(maxsize=256)
 def _image_css_url(url: str) -> str:
+    """Return a usable image url, inlining local files as base64 data URIs.
+
+    Remote (http/https) and existing data URIs pass through unchanged; local
+    file paths are read and encoded; anything else falls back to the
+    placeholder image.
+    """
     if not url.strip():
         return _image_css_url(item_placeholder())
     if url.startswith(("http://", "https://", "data:")):
@@ -41,6 +56,7 @@ def _image_css_url(url: str) -> str:
 
 
 def _css_string(text: str) -> str:
+    """Escape a string for safe embedding inside a double-quoted CSS value."""
     return (
         str(text)
         .replace("\\", "\\\\")
@@ -51,14 +67,17 @@ def _css_string(text: str) -> str:
 
 
 def _st_key_slug(key: str) -> str:
+    """Convert a state key into the CSS-class form Streamlit emits (dots to dashes)."""
     return key.replace(".", "-")
 
 
 def profile_poster_key(section: str, item_id: str | int, index: int) -> str:
+    """Return the container key for a profile/history poster slot."""
     return f"{PROFILE_KEY_PREFIX}{section}-{index}-{item_id}"
 
 
 def _strip_column_selector() -> str:
+    """Return the CSS selector matching the item/profile poster strip rows."""
     item = '[class*="st-key-streamlit_recommenders-item-"]'
     profile = f'[class*="st-key-{PROFILE_KEY_PREFIX}"]'
     return (
@@ -68,6 +87,7 @@ def _strip_column_selector() -> str:
 
 
 def _strip_column_rule() -> str:
+    """Return the CSS pinning each poster column to a fixed card width."""
     item = '[class*="st-key-streamlit_recommenders-item-"]'
     profile = f'[class*="st-key-{PROFILE_KEY_PREFIX}"]'
     width = f"{CARD_WIDTH_PX}px"
@@ -87,6 +107,7 @@ div[data-testid="stColumn"]:has({profile}) div[data-testid="stVerticalBlock"] {{
 
 
 def _ensure_rec_card_styles() -> None:
+    """Inject the base strip/column and profile-poster CSS for a section."""
     strip = _strip_column_selector()
     _inject_html(
         f"""
@@ -155,6 +176,7 @@ div[class*="st-key-{PROFILE_KEY_PREFIX}"]:hover .sr-display-poster::after {{
 
 
 def _button_card_css(entry: dict, card_id: str) -> str:
+    """Return the CSS for one poster-button card, incl. its selected state."""
     kp = card_id
     image = _css_url(entry["image"] or item_placeholder())
     selected = bool(entry.get("selected"))
@@ -325,7 +347,14 @@ def inject_card_styles(
     *,
     rank_offset: int = 0,
 ) -> None:
-    """Inject CSS for poster-button cards (one rule per visible slot)."""
+    """Inject CSS for poster-button cards (one rule per visible slot).
+
+    Args:
+        entries: Card entries whose slots need styling.
+        section: Stable section identifier for state keys.
+        rank_offset: Offset added to each slot index so keys stay unique when
+            entries span multiple rows/strips.
+    """
     _ensure_rec_card_styles()
     if not entries:
         return
@@ -340,6 +369,7 @@ def inject_card_styles(
 
 
 def _inject_html(html: str) -> None:
+    """Emit raw HTML/CSS via ``st.html`` when available, else ``st.markdown``."""
     if hasattr(st, "html"):
         st.html(html)
     else:
@@ -359,6 +389,7 @@ def render_display_poster(entry: dict, key: str) -> None:
 
 
 def swipe_deck_key(section: str) -> str:
+    """Return the container key for a section's swipe deck."""
     return f"{SWIPE_KEY_PREFIX}deck-{section}"
 
 
@@ -444,6 +475,7 @@ div[class*="st-key-{deck}"] .sr-swipe-description {{
 
 
 def _swipe_button_rule(key_slug: str, color: str, hover: str) -> str:
+    """Return CSS coloring one swipe button in its base and hover states."""
     sel = f'div[class*="st-key-{key_slug}"] button'
     return f"""
 {sel} {{
@@ -469,7 +501,16 @@ def render_horizontal_posters(
     rank_offset: int = 0,
     selectable: bool = True,
 ) -> None:
-    """Fixed-width poster strip with horizontal scroll."""
+    """Render a fixed-width poster strip with horizontal scroll.
+
+    Args:
+        entries: Card entries to render, one column each.
+        section: Stable section identifier for state keys.
+        all_sections: Every section id on the page.
+        rank_offset: Offset added to each card's rank for unique keys.
+        selectable: When ``True`` draw clickable selection cards; otherwise
+            draw non-interactive display posters.
+    """
     if not entries:
         return
     _ensure_rec_card_styles()
@@ -484,6 +525,42 @@ def render_horizontal_posters(
                 render_display_poster(entry, profile_poster_key(section, entry["id"], index))
 
 
+def grid_container_key(section: str) -> str:
+    """Return the container key that wraps a grid so it scrolls as one unit."""
+    return f"{GRID_KEY_PREFIX}{section_id(section)}"
+
+
+def _inject_grid_scroll_styles(grid_key: str) -> None:
+    """Scroll the whole grid horizontally as one unit instead of per row.
+
+    Overrides the shared strip rule (which scrolls each row on its own and
+    clamps it to the container width) so the wrapper owns the single scrollbar
+    and the rows size to their content, moving together.
+    """
+    wrapper = f'div[class*="st-key-{_st_key_slug(grid_key)}"]'
+    rows = f'{wrapper} div[data-testid="stHorizontalBlock"]'
+    _inject_html(
+        f"""
+<style>
+{wrapper} {{
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: thin;
+}}
+{rows} {{
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    width: max-content !important;
+    min-width: 100% !important;
+    max-width: none !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}}
+</style>
+        """,
+    )
+
+
 def render_grid_posters(
     entries: list[dict],
     section: str,
@@ -492,7 +569,16 @@ def render_grid_posters(
     n_cols: int = DEFAULT_GRID_COLS,
     selectable: bool = True,
 ) -> None:
-    """Wrapped poster gallery for browsing-style layouts."""
+    """Render a wrapped poster gallery for browsing-style layouts.
+
+    Args:
+        entries: Card entries to lay out row by row.
+        section: Stable section identifier for state keys.
+        all_sections: Every section id on the page.
+        n_cols: Posters per row; clamped to at least 1.
+        selectable: When ``True`` draw clickable selection cards; otherwise
+            draw non-interactive display posters.
+    """
     if not entries:
         return
     n_cols = max(1, n_cols)
@@ -500,19 +586,22 @@ def render_grid_posters(
     if selectable:
         inject_card_styles(entries, section)
 
-    for start in range(0, len(entries), n_cols):
-        row_entries = entries[start : start + n_cols]
-        cols = st.columns(n_cols, gap="small")
-        for index, col in enumerate(cols):
-            if index >= len(row_entries):
-                continue
-            entry = row_entries[index]
-            with col:
-                rank = start + index
-                if selectable:
-                    render_selectable_card(entry, rank, section, all_sections)
-                else:
-                    render_display_poster(entry, profile_poster_key(section, entry["id"], rank))
+    grid_key = grid_container_key(section)
+    _inject_grid_scroll_styles(grid_key)
+    with st.container(key=grid_key):
+        for start in range(0, len(entries), n_cols):
+            row_entries = entries[start : start + n_cols]
+            cols = st.columns(n_cols, gap="small")
+            for index, col in enumerate(cols):
+                if index >= len(row_entries):
+                    continue
+                entry = row_entries[index]
+                with col:
+                    rank = start + index
+                    if selectable:
+                        render_selectable_card(entry, rank, section, all_sections)
+                    else:
+                        render_display_poster(entry, profile_poster_key(section, entry["id"], rank))
 
 
 def render_selectable_card(
@@ -521,7 +610,16 @@ def render_selectable_card(
     section: str,
     all_sections: list[str],
 ) -> None:
-    """Poster card rendered as a single styled button."""
+    """Render a poster card as a single styled button that records selection.
+
+    Args:
+        entry: The card entry to render.
+        rank: The card's position, used for its state key and the recorded
+            selection.
+        section: Stable section identifier for state keys.
+        all_sections: Every section id on the page, passed to
+            ``record_selection``.
+    """
     key = item_action_key(section, entry["id"], rank)
     title = str(entry["title"])
     description = str(entry.get("description") or entry["title"])

@@ -1,3 +1,5 @@
+"""Top-k ranking metrics for offline recommender evaluation."""
+
 from __future__ import annotations
 
 import math
@@ -7,6 +9,17 @@ import pandas as pd
 
 
 def hit_rate_at_k(recs: Sequence, ground_truth: Sequence, k: int) -> float:
+    """Compute hit rate at ``k``.
+
+    Args:
+        recs: Ranked recommended item ids.
+        ground_truth: Relevant item ids for the user.
+        k: Cutoff rank.
+
+    Returns:
+        ``1.0`` if any of the top-``k`` recs is relevant, else ``0.0``; ``0.0``
+        when there is no ground truth.
+    """
     truth = set(ground_truth)
     if not truth:
         return 0.0
@@ -14,6 +27,17 @@ def hit_rate_at_k(recs: Sequence, ground_truth: Sequence, k: int) -> float:
 
 
 def recall_at_k(recs: Sequence, ground_truth: Sequence, k: int) -> float:
+    """Compute recall at ``k``.
+
+    Args:
+        recs: Ranked recommended item ids.
+        ground_truth: Relevant item ids for the user.
+        k: Cutoff rank.
+
+    Returns:
+        Fraction of relevant items found in the top ``k``; ``0.0`` when there
+        is no ground truth.
+    """
     truth = set(ground_truth)
     if not truth:
         return 0.0
@@ -21,6 +45,17 @@ def recall_at_k(recs: Sequence, ground_truth: Sequence, k: int) -> float:
 
 
 def mrr_at_k(recs: Sequence, ground_truth: Sequence, k: int) -> float:
+    """Compute the reciprocal rank of the first relevant item within ``k``.
+
+    Args:
+        recs: Ranked recommended item ids.
+        ground_truth: Relevant item ids for the user.
+        k: Cutoff rank.
+
+    Returns:
+        ``1 / rank`` of the first relevant top-``k`` item, or ``0.0`` if none
+        is relevant or there is no ground truth.
+    """
     truth = set(ground_truth)
     if not truth:
         return 0.0
@@ -31,6 +66,19 @@ def mrr_at_k(recs: Sequence, ground_truth: Sequence, k: int) -> float:
 
 
 def ndcg_at_k(recs: Sequence, ground_truth: Sequence, k: int) -> float:
+    """Compute normalized discounted cumulative gain at ``k``.
+
+    Relevance is binary; the ideal DCG assumes all relevant items (capped at
+    ``k``) are ranked first.
+
+    Args:
+        recs: Ranked recommended item ids.
+        ground_truth: Relevant item ids for the user.
+        k: Cutoff rank.
+
+    Returns:
+        NDCG in ``[0, 1]``; ``0.0`` when there is no ground truth or ideal DCG.
+    """
     truth = set(ground_truth)
     if not truth:
         return 0.0
@@ -44,6 +92,17 @@ def ndcg_at_k(recs: Sequence, ground_truth: Sequence, k: int) -> float:
 
 
 def coverage(recommendations: Mapping | Sequence[Sequence], all_item_ids: Sequence) -> float:
+    """Compute catalog coverage of a set of recommendation lists.
+
+    Args:
+        recommendations: Either a mapping of user to rec list or a sequence of
+            rec lists.
+        all_item_ids: Full item catalog.
+
+    Returns:
+        Fraction of the catalog that appears across all recommendations; ``0.0``
+        when the catalog is empty.
+    """
     catalog = set(all_item_ids)
     if not catalog:
         return 0.0
@@ -61,7 +120,28 @@ def evaluate(
     user_col: str = "user_id",
     all_item_ids: Sequence | None = None,
 ) -> pd.DataFrame:
-    """Evaluate one or more recommenders against held-out interactions."""
+    """Evaluate one or more recommenders against held-out interactions.
+
+    Ground truth is grouped from ``test_interactions`` by user; hit rate,
+    recall, NDCG and MRR are averaged over users, plus optional coverage.
+
+    Args:
+        recommendations: Either ``{model: {user: recs}}`` or a single
+            ``{user: recs}`` mapping (labeled ``"recommendations"``).
+        test_interactions: Held-out interactions holding ground-truth items.
+        k: Cutoff rank for all metrics.
+        item_col: Item id column in ``test_interactions``.
+        user_col: User id column in ``test_interactions``.
+        all_item_ids: Full catalog; when given, a coverage row is added per
+            model.
+
+    Returns:
+        Long-form DataFrame with columns ``model``, ``metric``, ``k`` and
+        ``value``.
+
+    Raises:
+        ValueError: If ``test_interactions`` lacks ``user_col`` or ``item_col``.
+    """
     truth = _truth_by_user(test_interactions, user_col, item_col)
     model_recs = _normalize_recommendations(recommendations)
     rows = []
@@ -103,6 +183,7 @@ def evaluate(
 
 
 def _top_k(recs: Sequence, k: int) -> list:
+    """Return the first ``k`` unique items from ``recs``, preserving order."""
     result = []
     seen = set()
     for item_id in recs:
@@ -116,6 +197,7 @@ def _top_k(recs: Sequence, k: int) -> list:
 
 
 def _truth_by_user(df: pd.DataFrame, user_col: str, item_col: str) -> dict:
+    """Group interactions into a ``{user: [item ids]}`` ground-truth mapping."""
     if df.empty:
         return {}
     missing = [col for col in [user_col, item_col] if col not in df.columns]
@@ -125,6 +207,7 @@ def _truth_by_user(df: pd.DataFrame, user_col: str, item_col: str) -> dict:
 
 
 def _normalize_recommendations(recommendations: Mapping) -> dict[str, dict]:
+    """Normalize recs into a ``{model: {user: recs}}`` mapping."""
     if not recommendations:
         return {}
     first_value = next(iter(recommendations.values()))

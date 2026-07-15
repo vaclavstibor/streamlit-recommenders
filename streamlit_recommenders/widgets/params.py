@@ -1,3 +1,5 @@
+"""Declarative parameter specs and helpers for rendering sidebar widgets."""
+
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -6,6 +8,18 @@ from streamlit_recommenders.runtime.keys import param_key
 
 @dataclass(frozen=True)
 class ParamSpec:
+    """Declarative spec for a single tunable parameter widget.
+
+    Attributes:
+        kind: Widget type, either ``"slider"`` or ``"selectbox"``.
+        label: Human-readable widget label.
+        default: Default (and slider) value.
+        min_value: Slider lower bound.
+        max_value: Slider upper bound.
+        step: Slider step size.
+        options: Selectbox choices.
+    """
+
     kind: Literal["slider", "selectbox"]
     label: str
     default: Any
@@ -22,6 +36,18 @@ def slider(
     value: float,
     step: float | None = None,
 ) -> ParamSpec:
+    """Build a slider :class:`ParamSpec`.
+
+    Args:
+        label: Widget label.
+        min_value: Slider lower bound.
+        max_value: Slider upper bound.
+        value: Default value.
+        step: Slider step size.
+
+    Returns:
+        A slider ``ParamSpec``.
+    """
     return ParamSpec(
         kind="slider",
         label=label,
@@ -33,6 +59,16 @@ def slider(
 
 
 def selectbox(label: str, options: list[Any], index: int = 0) -> ParamSpec:
+    """Build a selectbox :class:`ParamSpec`.
+
+    Args:
+        label: Widget label.
+        options: Selectable choices.
+        index: Index of the default choice; ``None`` default when empty.
+
+    Returns:
+        A selectbox ``ParamSpec``.
+    """
     default = options[index] if options else None
     return ParamSpec(
         kind="selectbox",
@@ -49,7 +85,21 @@ def resolve_params(
     key_prefix: str = "",
     container: Any | None = None,
 ) -> dict[str, Any]:
-    """Render sidebar widgets and return resolved param values."""
+    """Render sidebar widgets and return resolved param values.
+
+    YAML defs are rendered first, then any ``ParamSpec`` entries in ``params``;
+    plain (non-spec) values in ``params`` pass through unchanged and take
+    precedence over a matching YAML def.
+
+    Args:
+        params: Mapping of param name to a ``ParamSpec`` or a literal value.
+        yaml_defs: List of YAML-derived widget definitions.
+        key_prefix: Prefix used to namespace widget state keys.
+        container: Streamlit container to render into; defaults to the sidebar.
+
+    Returns:
+        Mapping of param name to its resolved value.
+    """
     import streamlit as st
 
     ui = container or st.sidebar
@@ -79,6 +129,19 @@ def split_model_params(
     params: dict[str, Any] | None,
     labels: list[str],
 ) -> tuple[dict[str, Any] | None, dict[str, dict[str, Any]]]:
+    """Split params into global params and per-model param dicts.
+
+    An entry whose name matches a model label and whose value is a dict is
+    treated as that model's params; everything else is global.
+
+    Args:
+        params: Combined mapping of global and per-model params.
+        labels: Known model labels.
+
+    Returns:
+        A ``(global_params, model_params)`` tuple; ``global_params`` is ``None``
+        when empty and ``model_params`` maps label to its param dict.
+    """
     if not params:
         return None, {}
     labels_set = set(labels)
@@ -97,6 +160,19 @@ def resolve_model_params(
     params: dict[str, dict[str, Any]] | None = None,
     yaml_defs: dict[str, list[dict]] | None = None,
 ) -> dict[str, dict[str, Any]]:
+    """Render a per-model parameter expander and return resolved values.
+
+    Only labels present in ``params`` or ``yaml_defs`` are rendered.
+
+    Args:
+        labels: Model labels to consider, in display order.
+        params: Optional per-model mapping of param specs/values.
+        yaml_defs: Optional per-model list of YAML widget definitions.
+
+    Returns:
+        Mapping of model label to its resolved param values; empty when no
+        label has any params.
+    """
     import streamlit as st
 
     params = params or {}
@@ -119,10 +195,12 @@ def resolve_model_params(
 
 
 def _param_key(name: str, key_prefix: str = "") -> str:
+    """Build a namespaced Streamlit widget state key for ``name``."""
     return param_key(f"{key_prefix}.{name}" if key_prefix else name)
 
 
 def _render_from_yaml(spec: dict, *, key_prefix: str = "", container: Any) -> Any:
+    """Render a widget from a YAML spec dict and return its value."""
     name = spec["name"]
     ptype = spec.get("type", "slider")
     if ptype == "slider":
@@ -148,6 +226,7 @@ def _render_from_yaml(spec: dict, *, key_prefix: str = "", container: Any) -> An
 
 
 def _render_spec(name: str, spec: ParamSpec, *, key_prefix: str = "", container: Any) -> Any:
+    """Render a widget from a :class:`ParamSpec` and return its value."""
     if spec.kind == "slider":
         return container.slider(
             spec.label,

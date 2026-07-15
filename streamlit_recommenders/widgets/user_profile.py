@@ -1,3 +1,5 @@
+"""Sidebar widgets summarizing a user's interaction history."""
+
 from __future__ import annotations
 
 import pandas as pd
@@ -10,6 +12,16 @@ def history_item_ids(
     interactions: pd.DataFrame | None,
     user_id: str | int,
 ) -> list:
+    """Return the distinct item ids a user has interacted with.
+
+    Args:
+        interactions: Interaction table, or ``None``.
+        user_id: User whose history to fetch.
+
+    Returns:
+        Deduplicated item ids for the user; empty for a session user or when
+        ``interactions`` is missing or lacks a ``user_id`` column.
+    """
     if interactions is None or "user_id" not in interactions.columns:
         return []
     if is_session_user(user_id):
@@ -26,6 +38,18 @@ def render_user_profile(
     *,
     max_items: int = 8,
 ) -> None:
+    """Render a sidebar expander summarizing the user's profile.
+
+    Shows interaction counts and, when available, average rating and active
+    span; session users instead get guidance on shaping recommendations.
+
+    Args:
+        interactions: Interaction table, or ``None``.
+        user_id: User to summarize.
+        items: Optional item catalog.
+        session_items: Items picked during the current session.
+        max_items: Maximum number of items to consider.
+    """
     if interactions is None or "user_id" not in interactions.columns:
         if is_session_user(user_id):
             st.sidebar.caption("Session user — select items below to shape recommendations.")
@@ -34,7 +58,7 @@ def render_user_profile(
     session_items = session_items or []
     with st.sidebar.expander("Profile summary", expanded=False):
         if is_session_user(user_id):
-            st.caption("Build your taste by selecting items in the recommendation rows.")
+            st.caption("Build your taste by selecting items in the recommendations below.")
             st.markdown(f"Session picks: **{len(session_items)}**")
             return
 

@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from streamlit_recommenders.viz.plot import _style
 from streamlit_recommenders.viz.table import table
 
 
@@ -20,7 +21,12 @@ def dataset_info(
     expanded: bool = False,
     key_prefix: str = "streamlit_recommenders.dataset_info",
 ) -> None:
-    """Render a compact, reusable dataset inspection block."""
+    """Render a compact, reusable dataset inspection block.
+
+    Headline metrics and a raw-count table summarise the dataset; a tabbed
+    switcher (consistent with the results-inspection plots) then flips between
+    the available distributions, defaulting to item genres when present.
+    """
     with st.expander(title, expanded=expanded):
         table(_dataset_stats(items, interactions, users, user_id_col=user_id_col))
 
@@ -31,29 +37,28 @@ def dataset_info(
             if items[col].dtype == "object" and col not in set(exclude_item_cols)
         ]
 
-        plot_options = ["Interactions per user"]
+        # Item genres is listed first so it is the default open tab when present.
+        tabs_spec = []
         if genre_col:
-            plot_options.append("Item genres")
-        if categorical_cols:
-            plot_options.append("Item metadata column")
-
-        plot_choice = st.selectbox(
-            "Distribution to plot",
-            plot_options,
-            key=f"{key_prefix}.plot_choice",
-        )
-
-        if plot_choice == "Item genres" and genre_col:
-            _plot_item_genres(items, item_id_col=item_id_col, genre_col=genre_col)
-        elif plot_choice == "Item metadata column" and categorical_cols:
-            column = st.selectbox(
-                "Item column",
-                categorical_cols,
-                key=f"{key_prefix}.item_column",
+            tabs_spec.append(
+                ("Item genres", lambda: _plot_item_genres(items, item_id_col=item_id_col, genre_col=genre_col))
             )
-            _plot_item_column(items, column)
-        else:
-            _plot_interactions_per_user(interactions, user_id_col=user_id_col)
+        tabs_spec.append(
+            ("Interactions per user", lambda: _plot_interactions_per_user(interactions, user_id_col=user_id_col))
+        )
+        tabs_spec.append(
+            ("Interactions per item", lambda: _plot_interactions_per_item(interactions, item_id_col=item_id_col))
+        )
+        if "rating" in interactions.columns:
+            tabs_spec.append(("Rating distribution", lambda: _plot_rating_distribution(interactions)))
+        if categorical_cols:
+            tabs_spec.append(
+                ("Item metadata", lambda: _plot_metadata_tab(items, categorical_cols, key_prefix=key_prefix))
+            )
+
+        for tab, (_, render) in zip(st.tabs([label for label, _ in tabs_spec]), tabs_spec):
+            with tab:
+                render()
 
 
 def _dataset_stats(
@@ -100,14 +105,21 @@ def _plot_item_genres(
     genre_counts = genres[genre_col].value_counts().head(15).reset_index()
     genre_counts.columns = ["genre", "items"]
     fig = px.bar(genre_counts, x="genre", y="items", title="Top item genres")
-    _show_plot(fig)
+    _style(fig)
+    st.plotly_chart(fig, width="stretch")
 
 
 def _plot_item_column(items: pd.DataFrame, column: str) -> None:
     counts = items[column].dropna().astype(str).value_counts().head(20).reset_index()
     counts.columns = [column, "items"]
     fig = px.bar(counts, x=column, y="items", title=f"Top values in {column}")
-    _show_plot(fig)
+    _style(fig)
+    st.plotly_chart(fig, width="stretch")
+
+
+def _plot_metadata_tab(items: pd.DataFrame, categorical_cols: list[str], *, key_prefix: str) -> None:
+    column = st.selectbox("Item column", categorical_cols, key=f"{key_prefix}.item_column")
+    _plot_item_column(items, column)
 
 
 def _plot_interactions_per_user(interactions: pd.DataFrame, *, user_id_col: str) -> None:
@@ -121,9 +133,28 @@ def _plot_interactions_per_user(interactions: pd.DataFrame, *, user_id_col: str)
         nbins=40,
         title="Interactions per user",
     )
-    _show_plot(fig)
+    _style(fig)
+    st.plotly_chart(fig, width="stretch")
 
 
-def _show_plot(fig) -> None:
-    fig.update_layout(margin=dict(l=20, r=20, t=45, b=20), paper_bgcolor="rgba(0,0,0,0)")
+def _plot_interactions_per_item(interactions: pd.DataFrame, *, item_id_col: str) -> None:
+    if item_id_col not in interactions.columns:
+        st.info(f"No `{item_id_col}` column available for item popularity.")
+        return
+    interactions_per_item = interactions.groupby(item_id_col).size().reset_index(name="interactions")
+    fig = px.histogram(
+        interactions_per_item,
+        x="interactions",
+        nbins=40,
+        title="Interactions per item (popularity long tail)",
+    )
+    _style(fig)
+    st.plotly_chart(fig, width="stretch")
+
+
+def _plot_rating_distribution(interactions: pd.DataFrame) -> None:
+    counts = interactions["rating"].value_counts().sort_index().reset_index()
+    counts.columns = ["rating", "count"]
+    fig = px.bar(counts, x="rating", y="count", title="Rating distribution")
+    _style(fig)
     st.plotly_chart(fig, width="stretch")
