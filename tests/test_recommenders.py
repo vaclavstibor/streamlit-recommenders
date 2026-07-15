@@ -1,6 +1,13 @@
+import sys
+from pathlib import Path
+
 import pandas as pd
 
-from streamlit_recommenders.recommenders import (
+EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
+if str(EXAMPLES) not in sys.path:
+    sys.path.insert(0, str(EXAMPLES))
+
+from reference_recommenders import (
     EASERecommender,
     ItemKNNRecommender,
     SequentialCFRecommender,
