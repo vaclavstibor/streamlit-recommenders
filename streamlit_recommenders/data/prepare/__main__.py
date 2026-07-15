@@ -10,6 +10,7 @@ from streamlit_recommenders.data.prepare.movielens import MOVIELENS_URLS, prepar
 
 
 def main() -> None:
+    """Parse CLI arguments and dispatch to the goodbooks or MovieLens preparer."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--dataset",

@@ -1,3 +1,5 @@
+"""Resolve item poster references to local files or URLs, with placeholders."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -30,6 +32,14 @@ def resolve_image_urls(items: pd.DataFrame, root: str | Path) -> pd.Series:
     through unchanged, relative paths are resolved against ``root``, and
     items whose references are missing or unresolvable fall back to the
     placeholder.
+
+    Args:
+        items: Item metadata table, possibly carrying ``image_url`` and/or
+            ``poster_path`` columns.
+        root: Dataset root used to resolve relative poster paths.
+
+    Returns:
+        A Series, aligned to ``items.index``, of resolved paths or URLs.
     """
     placeholder = dataset_placeholder(root)
     root_path = Path(root)
@@ -38,6 +48,7 @@ def resolve_image_urls(items: pd.DataFrame, root: str | Path) -> pd.Series:
         return pd.Series([placeholder] * len(items), index=items.index)
 
     def resolve_value(value) -> str | None:
+        """Return a usable URL/path for one reference, or None if unresolved."""
         if pd.isna(value) or not str(value).strip():
             return None
         text = str(value)
@@ -49,6 +60,7 @@ def resolve_image_urls(items: pd.DataFrame, root: str | Path) -> pd.Series:
         return str(path) if path.exists() else None
 
     def resolve_row(row: pd.Series) -> str:
+        """Return the first resolvable reference in the row, else placeholder."""
         for column in columns:
             resolved = resolve_value(row[column])
             if resolved is not None:

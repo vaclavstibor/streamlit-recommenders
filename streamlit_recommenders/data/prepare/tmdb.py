@@ -26,11 +26,25 @@ class TmdbClient:
     """Small urllib TMDB client with retry, backoff, and 429 rate-limit handling."""
 
     def __init__(self, *, api_key: str = "", bearer_token: str = "") -> None:
+        """Store TMDB credentials.
+
+        Args:
+            api_key: TMDB v3 API key, sent as a query parameter.
+            bearer_token: TMDB v4 bearer token, sent as an Authorization header.
+        """
         self.api_key = api_key
         self.bearer_token = bearer_token
 
     @classmethod
     def from_env(cls) -> TmdbClient:
+        """Build a client from ``TMDB_API_KEY``/``TMDB_BEARER_TOKEN``.
+
+        Returns:
+            A configured TmdbClient.
+
+        Raises:
+            SystemExit: If neither environment variable is set.
+        """
         client = cls(
             api_key=os.environ.get("TMDB_API_KEY", ""),
             bearer_token=os.environ.get("TMDB_BEARER_TOKEN", ""),
@@ -40,6 +54,15 @@ class TmdbClient:
         return client
 
     def movie(self, tmdb_id: int, *, attempts: int = 4) -> dict[str, Any]:
+        """Fetch a movie's TMDB metadata, retrying on rate limits and errors.
+
+        Args:
+            tmdb_id: TMDB movie id.
+            attempts: Maximum number of request attempts.
+
+        Returns:
+            The parsed JSON metadata, or an empty dict on failure.
+        """
         params = {"language": "en-US"}
         if self.api_key:
             params["api_key"] = self.api_key
@@ -62,6 +85,7 @@ class TmdbClient:
         return {}
 
     def _headers(self) -> dict[str, str]:
+        """Return the Authorization header for bearer auth, or empty when unset."""
         if not self.bearer_token:
             return {}
         return {"Authorization": f"Bearer {self.bearer_token}"}
@@ -80,6 +104,21 @@ def enrich_from_tmdb(
     """Fetch descriptions + posters for items that carry a ``tmdb_id``.
 
     Returns the enriched items and a completeness report of remaining gaps.
+
+    Args:
+        items: Item table; must include a ``tmdb_id`` column.
+        client: TMDB client used to fetch metadata.
+        data_dir: Dataset root; posters are saved under ``data_dir/posters``.
+        download_posters: Download poster images when True.
+        poster_limit: Max items to process (0 = all with a ``tmdb_id``).
+        sleep_seconds: Seconds to sleep between requests.
+        force: Re-download posters even if already present.
+
+    Returns:
+        Tuple of ``(enriched_items, completeness_report)``.
+
+    Raises:
+        ValueError: If ``items`` lacks a ``tmdb_id`` column.
     """
     if "tmdb_id" not in items.columns:
         raise ValueError("items must include a tmdb_id column for TMDB enrichment")
@@ -126,8 +165,18 @@ def enrich_from_tmdb(
 
 
 def write_completeness_report(items: pd.DataFrame, data_dir: Path) -> pd.DataFrame:
-    """Write and summarize per-item missing poster/description flags."""
+    """Write and summarize per-item missing poster/description flags.
+
+    Args:
+        items: Enriched items table.
+        data_dir: Dataset root; the report is written to
+            ``data_dir/metadata_completeness.csv``.
+
+    Returns:
+        DataFrame of items with a missing poster and/or description.
+    """
     def missing_poster(row) -> int:
+        """Return 1 if the row's poster file is missing or unresolved, else 0."""
         value = row.get("poster_path", "")
         if pd.isna(value) or not str(value).strip():
             return 1
@@ -137,6 +186,7 @@ def write_completeness_report(items: pd.DataFrame, data_dir: Path) -> pd.DataFra
         return int(not path.exists())
 
     def missing_description(row) -> int:
+        """Return 1 if the row's description is missing or blank, else 0."""
         value = row.get("description", "")
         return int(pd.isna(value) or not str(value).strip())
 
@@ -163,6 +213,7 @@ def write_completeness_report(items: pd.DataFrame, data_dir: Path) -> pd.DataFra
 
 
 def _download_poster(poster_path: str, output_path: Path, *, force: bool) -> str:
+    """Download a TMDB poster to ``output_path``; return its path or "" on failure."""
     if output_path.exists() and not force:
         return str(output_path)
     url = TMDB_IMAGE_URL.format(poster_path=poster_path)
@@ -176,6 +227,7 @@ def _download_poster(poster_path: str, output_path: Path, *, force: bool) -> str
 
 
 def _relative_to(root: Path, path: str) -> str:
+    """Return ``path`` relative to ``root``, or unchanged if not under it."""
     if not path:
         return ""
     try:

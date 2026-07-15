@@ -35,6 +35,22 @@ def prepare_movielens(
 
     Idempotent: skips work when the folder is already marked complete unless
     ``force`` is set or posters are newly requested. Returns the dataset folder.
+
+    Args:
+        dataset: MovieLens release key from ``MOVIELENS_URLS``.
+        root: Output folder; defaults to ``data/<dataset>``.
+        with_posters: Fetch TMDB descriptions and posters after building items.
+        tmdb_api_key: TMDB API key; falls back to ``TmdbClient.from_env`` (which
+            reads ``TMDB_API_KEY``/``TMDB_BEARER_TOKEN``) when not given.
+        poster_limit: Max posters to fetch (0 = all matched items).
+        sleep: Seconds to sleep between TMDB requests.
+        force: Rebuild even if the folder is already marked complete.
+
+    Returns:
+        Path to the prepared dataset folder.
+
+    Raises:
+        ValueError: If ``dataset`` is not a known MovieLens key.
     """
     if dataset not in MOVIELENS_URLS:
         raise ValueError(f"Unknown dataset {dataset!r}; choose from {sorted(MOVIELENS_URLS)}")
@@ -87,6 +103,22 @@ def prepare_movielens(
 
 
 def build_items(movies: pd.DataFrame, links: pd.DataFrame | None) -> pd.DataFrame:
+    """Build the items table from MovieLens movies and optional links.
+
+    Renames ``movieId`` to ``item_id``, extracts the release year from the
+    title, and merges IMDb/TMDB ids from ``links.csv`` when available.
+
+    Args:
+        movies: Parsed ``movies.csv`` (needs ``movieId`` and ``title``).
+        links: Parsed ``links.csv`` (needs ``movieId``), or None.
+
+    Returns:
+        Items DataFrame with the available columns among ``item_id``, ``title``,
+        ``genres``, ``year``, ``imdb_id``, ``tmdb_id``.
+
+    Raises:
+        ValueError: If required columns are missing.
+    """
     require_columns(movies, ["movieId", "title"], "movies.csv")
     items = movies.rename(columns={"movieId": "item_id"}).copy()
     if "genres" not in items.columns:
@@ -108,6 +140,22 @@ def build_items(movies: pd.DataFrame, links: pd.DataFrame | None) -> pd.DataFram
 
 
 def build_interactions(ratings: pd.DataFrame) -> pd.DataFrame:
+    """Build the interactions table from MovieLens ratings.
+
+    Renames ``userId``/``movieId`` to ``user_id``/``item_id`` and keeps
+    ``rating`` plus ``timestamp`` when present.
+
+    Args:
+        ratings: Parsed ``ratings.csv`` (needs ``userId``, ``movieId``,
+            ``rating``).
+
+    Returns:
+        Interactions DataFrame with ``user_id``, ``item_id``, ``rating`` and,
+        if available, ``timestamp``.
+
+    Raises:
+        ValueError: If required columns are missing.
+    """
     require_columns(ratings, ["userId", "movieId", "rating"], "ratings.csv")
     interactions = ratings.rename(columns={"userId": "user_id", "movieId": "item_id"})
     keep = ["user_id", "item_id", "rating"]
@@ -117,6 +165,7 @@ def build_interactions(ratings: pd.DataFrame) -> pd.DataFrame:
 
 
 def _ensure_movielens(dataset: str, raw_dir: Path, zip_path: Path, *, force: bool) -> None:
+    """Ensure raw movies/ratings CSVs exist, downloading and extracting if needed."""
     if raw_dir.joinpath("movies.csv").exists() and raw_dir.joinpath("ratings.csv").exists() and not force:
         print(f"Using existing raw MovieLens files in {raw_dir}")
         return
@@ -125,6 +174,7 @@ def _ensure_movielens(dataset: str, raw_dir: Path, zip_path: Path, *, force: boo
 
 
 def _download_file(url: str, output_path: Path, *, force: bool) -> None:
+    """Stream ``url`` to ``output_path`` with a progress bar, skipping if present."""
     if output_path.exists() and not force:
         print(f"Using existing download {output_path}")
         return
@@ -145,6 +195,7 @@ def _download_file(url: str, output_path: Path, *, force: bool) -> None:
 
 
 def _extract_movielens(zip_path: Path, raw_dir: Path) -> None:
+    """Extract CSV members from the MovieLens ZIP into a fresh ``raw_dir``."""
     print(f"Extracting {zip_path} to {raw_dir}")
     if raw_dir.exists():
         shutil.rmtree(raw_dir)
@@ -161,6 +212,7 @@ def _extract_movielens(zip_path: Path, raw_dir: Path) -> None:
 
 
 def _read_required_csv(raw_dir: Path, name: str) -> pd.DataFrame:
+    """Read a required CSV from ``raw_dir``, raising if it is absent."""
     path = raw_dir / name
     if not path.exists():
         raise FileNotFoundError(f"Missing {path}; MovieLens ZIP did not contain {name}")
@@ -168,11 +220,13 @@ def _read_required_csv(raw_dir: Path, name: str) -> pd.DataFrame:
 
 
 def _read_optional_csv(raw_dir: Path, name: str) -> pd.DataFrame | None:
+    """Read an optional CSV from ``raw_dir``, returning None if it is absent."""
     path = raw_dir / name
     return pd.read_csv(path) if path.exists() else None
 
 
 def _extract_year(title: str) -> str:
+    """Extract a trailing ``(YYYY)`` year from a title, or "" if absent."""
     text = str(title)
     if len(text) >= 6 and text.endswith(")") and text[-5:-1].isdigit():
         return text[-5:-1]
@@ -180,6 +234,7 @@ def _extract_year(title: str) -> str:
 
 
 def _format_imdb_id(value: Any) -> str:
+    """Format a numeric IMDb id as a zero-padded ``tt`` string."""
     if pd.isna(value):
         return ""
     try:
@@ -189,6 +244,16 @@ def _format_imdb_id(value: Any) -> str:
 
 
 def require_columns(df: pd.DataFrame, columns: list[str], name: str) -> None:
+    """Raise if any required column is absent from ``df``.
+
+    Args:
+        df: DataFrame to check.
+        columns: Required column names.
+        name: Table label used in the error message.
+
+    Raises:
+        ValueError: If one or more columns are missing.
+    """
     missing = [column for column in columns if column not in df.columns]
     if missing:
         raise ValueError(f"{name} is missing required columns: {missing}")

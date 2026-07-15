@@ -21,6 +21,16 @@ def prepare_goodbooks(
 
     Uses local ``books.csv``/``ratings.csv`` when present, otherwise downloads via
     ``kagglehub`` if it is installed. Cover ``image_url`` ships with the dataset.
+
+    Args:
+        root: Output folder; defaults to ``data/goodbooks-10k``.
+        force: Rebuild even if the folder is already marked complete.
+
+    Returns:
+        Path to the prepared dataset folder.
+
+    Raises:
+        SystemExit: If the CSVs are absent and ``kagglehub`` is not installed.
     """
     root = Path(root) if root else Path("data") / "goodbooks-10k"
     root.mkdir(parents=True, exist_ok=True)
@@ -49,6 +59,7 @@ def prepare_goodbooks(
 
 
 def _build_goodbooks(books_csv: Path, ratings_csv: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Build items/interactions tables from goodbooks CSVs, keying on ``item_id``."""
     books = pd.read_csv(books_csv)
     ratings = pd.read_csv(ratings_csv)
     require_columns(books, ["book_id", "title"], "books.csv")
@@ -63,6 +74,7 @@ def _build_goodbooks(books_csv: Path, ratings_csv: Path) -> tuple[pd.DataFrame, 
 
 
 def _download_goodbooks(root: Path) -> None:
+    """Download goodbooks CSVs into ``root`` via kagglehub, or exit if unavailable."""
     try:
         import kagglehub
     except ImportError as exc:
