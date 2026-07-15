@@ -52,7 +52,7 @@ Do not commit MovieLens data or cached posters unless their license explicitly a
 
 ### Preparation
 
-`sr.prepare_movielens(dataset, root=None, *, with_posters=False, tmdb_api_key=None, poster_limit=0, force=False)` and `sr.prepare_goodbooks(root=None, *, force=False)` write `items.csv`/`interactions.csv` plus a `dataset.json` manifest. `sr.is_complete(root)` reports whether a folder is fully prepared; preparation is a no-op on a complete folder unless `force=True` (or posters are newly requested). `sr.load_local_dataset(root)` returns `(items, train_or_interactions, test)` with poster paths resolved to local files (missing ones fall back to the placeholder).
+`sr.prepare_movielens(dataset, root=None, *, with_posters=False, tmdb_api_key=None, poster_limit=0, force=False)` and `sr.prepare_goodbooks(root=None, *, force=False)` write `items.csv`/`interactions.csv` plus a `dataset.json` manifest. `sr.is_complete(root)` reports whether a folder is fully prepared; preparation is a no-op on a complete folder unless `force=True` (or posters are newly requested). `sr.load_dataset(root)` returns `(items, train_or_interactions, test)` with poster paths resolved to local files (missing ones fall back to the placeholder).
 
 ## Recommender
 

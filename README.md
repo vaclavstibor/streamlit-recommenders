@@ -209,7 +209,7 @@ see `examples/swipe_deck_cards.py`. Full shapes are in
 
 | Area | API |
 |------|-----|
-| Data | `Dataset`, `ColumnMap`, `load_dataset()`, `load_local_dataset()`, `validate_dataset()` |
+| Data | `Dataset`, `ColumnMap`, `load_dataset()`, `load_dataset_from_paths()`, `validate_dataset()` |
 | Recommenders | `BaseRecommender`, `ArtifactRecommender`, `load_artifacts()` — ItemKNN / EASE / Sequential CF are reference implementations in `examples/reference_recommenders.py`, not library imports |
 | Metrics | `evaluate()`, `hit_rate_at_k()`, `recall_at_k()`, `ndcg_at_k()`, `mrr_at_k()`, `coverage()` |
 | Viz | `dataset_info()`, `recommendation_overlap_matrix()`, `plot_overlap_heatmap()`, `plot_metric_comparison()`, `plot_ranked_items()`, `plot_score_distribution()` |

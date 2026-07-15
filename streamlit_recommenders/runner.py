@@ -14,7 +14,7 @@ import streamlit as st
 from streamlit_recommenders.config.yaml_loader import load_config
 from streamlit_recommenders.data import load_interactions as _load_interactions
 from streamlit_recommenders.data import load_items as _load_items
-from streamlit_recommenders.data import load_local_dataset as _load_local_dataset
+from streamlit_recommenders.data import load_dataset as _load_dataset
 from streamlit_recommenders.layouts import render_layout
 from streamlit_recommenders.recommenders import ArtifactRecommender
 from streamlit_recommenders.recommenders import load_artifacts as _load_artifacts
@@ -81,7 +81,7 @@ def load_interactions(
     return _load_interactions(path, user_col, item_col)
 
 
-def load_local_dataset(
+def load_dataset(
     root: str,
     *,
     resolve_images: bool = True,
@@ -89,7 +89,7 @@ def load_local_dataset(
     """Load a prepared dataset folder, cached across Streamlit reruns.
 
     Cached wrapper over
-    :func:`streamlit_recommenders.data.load_local_dataset` so a demo reloads
+    :func:`streamlit_recommenders.data.load_dataset` so a demo reloads
     ``(items, interactions, test)`` once per session instead of on every rerun.
 
     Args:
@@ -100,17 +100,17 @@ def load_local_dataset(
         Tuple of ``(items, interactions, test)``; the latter two are None when
         their CSVs are absent.
     """
-    return _load_local_dataset_cached(str(root), resolve_images=resolve_images)
+    return _load_dataset_cached(str(root), resolve_images=resolve_images)
 
 
 @st.cache_resource(show_spinner=False)
-def _load_local_dataset_cached(
+def _load_dataset_cached(
     root: str,
     *,
     resolve_images: bool,
 ) -> tuple[pd.DataFrame, pd.DataFrame | None, pd.DataFrame | None]:
-    """Streamlit-cached body for :func:`load_local_dataset`."""
-    return _load_local_dataset(root, resolve_images=resolve_images)
+    """Streamlit-cached body for :func:`load_dataset`."""
+    return _load_dataset(root, resolve_images=resolve_images)
 
 
 def load_artifacts(

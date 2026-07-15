@@ -11,7 +11,8 @@ Generated from the source docstrings. Start with `sr.run`; the recommender contr
 
 ::: streamlit_recommenders.load_items
 ::: streamlit_recommenders.load_interactions
-::: streamlit_recommenders.load_local_dataset
+::: streamlit_recommenders.load_dataset
+::: streamlit_recommenders.load_dataset_from_paths
 
 ## Session readers (for `body()`)
 

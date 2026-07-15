@@ -18,7 +18,7 @@ Requires **Python ≥3.10**.
 | Area | API |
 |------|-----|
 | App | `sr.run(...)` |
-| Data | `load_items`, `load_interactions`, `load_users`, `load_dataset`, `load_local_dataset`, `resolve_image_urls`, `Dataset`, `ColumnMap`, `validate_dataset` |
+| Data | `load_items`, `load_interactions`, `load_users`, `load_dataset`, `load_dataset_from_paths`, `resolve_image_urls`, `Dataset`, `ColumnMap`, `validate_dataset` |
 | Data prep | `prepare_movielens`, `prepare_goodbooks`, `is_complete` |
 | Params | `slider`, `selectbox`, `param_value` |
 | Layouts | `rows`, `grid`, `cards` |
@@ -65,7 +65,7 @@ sr.run(
 ## Data
 
 ```python
-dataset = sr.load_dataset(
+dataset = sr.load_dataset_from_paths(
     items="items.csv",
     interactions="train_interactions.csv",
     users="users.csv",
@@ -80,7 +80,7 @@ Only `item_id` is required for `items`. Movie demos should prefer `title`, `imag
 Load a prepared folder (resolves poster paths to local files) with:
 
 ```python
-items, train, test = sr.load_local_dataset("data/ml-latest-small")
+items, train, test = sr.load_dataset("data/ml-latest-small")
 ```
 
 ## Data preparation

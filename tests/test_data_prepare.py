@@ -88,7 +88,7 @@ def test_resolve_image_urls_falls_through_broken_image_url(tmp_path):
     assert resolved.iloc[0] == str(poster)
 
 
-def test_load_local_dataset(tmp_path):
+def test_load_dataset(tmp_path):
     poster = tmp_path / "posters" / "10.jpg"
     poster.parent.mkdir(parents=True)
     poster.write_bytes(b"fake")
@@ -102,7 +102,7 @@ def test_load_local_dataset(tmp_path):
         tmp_path / "test_interactions.csv", index=False
     )
 
-    items, train, test = sr.load_local_dataset(tmp_path)
+    items, train, test = sr.load_dataset(tmp_path)
 
     assert "image_url" in items.columns
     assert items.loc[items["item_id"] == 1, "image_url"].iloc[0] == str(poster)

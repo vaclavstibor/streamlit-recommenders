@@ -7,7 +7,7 @@ import streamlit as st
 import streamlit_recommenders as sr
 
 DATA_DIR = os.environ.get("SR_DATA_DIR", "data/ml-latest-small")
-ITEMS, TRAIN, TEST = sr.load_local_dataset(DATA_DIR)
+ITEMS, TRAIN, TEST = sr.load_dataset(DATA_DIR)
 models = sr.load_artifacts(
     {
         "ItemKNN": f"{DATA_DIR}/artifacts/itemknn.npz",

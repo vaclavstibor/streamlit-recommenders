@@ -2,16 +2,16 @@
 
 from streamlit_recommenders.runner import (
     load_artifacts,
+    load_dataset,
     load_interactions,
     load_items,
-    load_local_dataset,
     run,
 )
 from streamlit_recommenders.content.markdown import markdown, markdown_file
 from streamlit_recommenders.data import (
     ColumnMap,
     Dataset,
-    load_dataset,
+    load_dataset_from_paths,
     load_users,
     resolve_image_urls,
     validate_dataset,
@@ -123,7 +123,7 @@ __all__ = [
     "load_interactions",
     "load_users",
     "load_dataset",
-    "load_local_dataset",
+    "load_dataset_from_paths",
     "resolve_image_urls",
     "validate_dataset",
     "prepare_movielens",

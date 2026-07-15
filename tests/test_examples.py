@@ -21,7 +21,7 @@ def test_polished_examples_exist():
 def test_artifact_loading_is_public_library_api():
     # Loading exported artifacts is core library API, not example glue.
     assert callable(sr.load_artifacts)
-    assert callable(sr.load_local_dataset)
+    assert callable(sr.load_dataset)
 
 
 def test_artifact_recommender_is_library_class():
@@ -30,7 +30,7 @@ def test_artifact_recommender_is_library_class():
 
 def test_legacy_examples_removed():
     assert not (EXAMPLES / "builtin_recommenders.py").exists()
-    # Its glue folded into sr.load_local_dataset / sr.load_artifacts.
+    # Its glue folded into sr.load_dataset / sr.load_artifacts.
     assert not (EXAMPLES / "artifact_recommender.py").exists()
     assert not (EXAMPLES / "_bootstrap.py").exists()
     assert not (EXAMPLES / "minimal_demo.py").exists()

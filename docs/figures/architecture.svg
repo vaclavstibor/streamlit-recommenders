@@ -93,7 +93,7 @@
     <text x="20" y="24" font-family="Menlo, Courier, monospace" font-size="16" fill="#1f2937"><tspan fill="#0550ae">import</tspan> streamlit_recommenders <tspan fill="#0550ae">as</tspan> sr</text>
     <text x="20" y="44" font-family="Menlo, Courier, monospace" font-size="16" fill="#1f2937"> </text>
     <text x="20" y="64" font-family="Menlo, Courier, monospace" font-size="16" fill="#1f2937">DATA_DIR = <tspan fill="#0a3069">"data/ml-latest-small"</tspan></text>
-    <text x="20" y="84" font-family="Menlo, Courier, monospace" font-size="16" fill="#1f2937">ITEMS, TRAIN, TEST = sr.load_local_dataset(DATA_DIR)</text>
+    <text x="20" y="84" font-family="Menlo, Courier, monospace" font-size="16" fill="#1f2937">ITEMS, TRAIN, TEST = sr.load_dataset(DATA_DIR)</text>
     <text x="20" y="104" font-family="Menlo, Courier, monospace" font-size="16" fill="#1f2937">models = sr.load_artifacts({</text>
     <text x="20" y="124" font-family="Menlo, Courier, monospace" font-size="16" fill="#1f2937">    <tspan fill="#0a3069">"ItemKNN"</tspan>: f<tspan fill="#0a3069">"{DATA_DIR}/artifacts/itemknn.npz"</tspan>,</text>
     <text x="20" y="144" font-family="Menlo, Courier, monospace" font-size="16" fill="#1f2937">    <tspan fill="#0a3069">"EASE"</tspan>: f<tspan fill="#0a3069">"{DATA_DIR}/artifacts/ease.npz"</tspan>,</text>

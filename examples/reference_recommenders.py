@@ -393,7 +393,7 @@ if __name__ == "__main__":
     import os
 
     DATA_DIR = os.environ.get("SR_DATA_DIR", "data/ml-latest-small")
-    ITEMS, TRAIN, _ = sr.load_local_dataset(DATA_DIR)
+    ITEMS, TRAIN, _ = sr.load_dataset(DATA_DIR)
     MODELS = {
         "ItemKNN": ItemKNNRecommender.from_interactions(TRAIN, ITEMS),
         "EASE": EASERecommender.from_interactions(TRAIN, ITEMS),

@@ -134,7 +134,7 @@ def load_users(path: str, id_col: str = "user_id") -> pd.DataFrame:
     return df
 
 
-def load_dataset(
+def load_dataset_from_paths(
     *,
     items: str,
     interactions: str | None = None,
@@ -173,7 +173,7 @@ def load_dataset(
     return dataset.validate()
 
 
-def load_local_dataset(
+def load_dataset(
     root: str | Path,
     *,
     resolve_images: bool = True,
