@@ -82,6 +82,24 @@ Optional injected kwargs when accepted by signature:
 | `session_items` | Ordered ids from the session profile (likes/clicks) |
 | `selections` | Per-section `{item_id, rank, source}` metadata; swipe dislikes add `sentiment: "dislike"` |
 
+### Feedback signals
+
+The three swipe/click actions map onto the contract as follows, so a custom model can use as
+much of the feedback as it wants:
+
+| Action | Carried as | Reference models | A custom model can |
+|--------|-----------|-----------------|--------------------|
+| Like / click | `session_items` (+ a `selections` entry) | Added to the positive profile vector | Same |
+| Dislike | `selections` entry with `sentiment: "dislike"` | Excluded from the candidate pool only | Read the sentiment and treat it as a negative signal |
+| Skip | Excluded ids (not in `selections`) | Excluded so the card does not reappear | — |
+
+The reference recommenders only *exclude* disliked/skipped items; they do not use dislikes as a
+negative training signal. Because `selections` is passed through untouched, a custom model that
+overrides `get_recommendations(..., selections=...)` can read the dislike sentiment and act on
+it — see `examples/swipe_deck_cards.py::FeedbackAwareEASE` for a worked example. `sr.disliked_items()`
+exposes the current session's disliked ids to `body()`, and the runner renders them in a
+"Disliked this session" strip.
+
 Use `effective_seen(interactions, user_id, session_items)` for filtering. Artifact paths, model checkpoints, external API handles, or framework-specific objects are construction details of the adapter, not part of the core recommender protocol.
 
 ### External training frameworks
@@ -95,10 +113,11 @@ class TrainedModelAdapter:
         return item_ids[:k]
 ```
 
-Recommended baseline families:
+Recommended baseline families (defined as reference implementations in
+`examples/reference_recommenders.py`, not shipped by the library):
 
-| Family | Built-in lightweight class | Canonical citation |
-|--------|----------------------------|--------------------|
+| Family | Reference class (in examples) | Canonical citation |
+|--------|-------------------------------|--------------------|
 | Item-item CF | `ItemKNNRecommender` | Deshpande & Karypis, ACM TOIS 2004 |
 | Shallow linear CF | `EASERecommender` | Steck, WWW 2019 |
 | Sequential CF | `SequentialCFRecommender` | SASRec, Kang & McAuley, ICDM 2018 |
@@ -137,15 +156,28 @@ sequenceDiagram
   participant State
   participant Rec as get_recommendations()
 
-  User->>Card: click poster
-  Card->>State: record_selection
-  Note over State: selected_ids and selections updated
+  User->>Card: click poster (or Like / Dislike on a swipe card)
+  Card->>State: record_selection / record_swipe
+  Note over State: selected_ids, disliked_ids, selections updated
   User->>Rec: click Get Recommendations
-  Rec->>State: receives session_items and selections
+  Rec->>State: receives session_items (+ history) and selections
+  Note over Rec: profile = historical interactions ∪ session likes
   Rec-->>User: refreshed item ids
 ```
 
-Reader API in `body()`: `sr.selected_items()`, `sr.selections()`, `sr.current_user()`, `sr.param_value(name)`.
+The model scores against the **user profile**, which is the union of the selected user's
+historical interactions (`history_item_ids`) and the current session's likes (`session_items`);
+`effective_seen` unions the two for seen-filtering. The "Try yourself" session user has no
+history, so it is driven purely by session clicks. See the README "How recommendations are
+built" section for the end-to-end walk-through.
+
+Reader API in `body()`: `sr.selected_items()`, `sr.disliked_items()`, `sr.displayed_items(label)`, `sr.selections()`, `sr.current_user()`, `sr.param_value(name)`.
+
+`sr.displayed_items(label)` returns the exact ids currently shown in a recommender row (or a
+`{label: ids}` dict when called with no argument). It is the single source of truth for what the
+UI displays — including the cold-start sample shown for the "Try yourself" session user — so
+diagnostics built in `body()` (overlap heatmaps, score tables) stay consistent with the rows on
+screen instead of recomputing a different ranking.
 
 ## Metrics
 

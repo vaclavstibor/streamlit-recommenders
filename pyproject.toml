@@ -34,6 +34,7 @@ dependencies = [
 dev = ["pytest>=7.0", "build", "twine"]
 training = ["scipy"]
 goodbooks = ["kagglehub"]
+docs = ["mkdocs-material>=9.5", "mkdocstrings[python]>=0.24"]
 
 [project.urls]
 Homepage = "https://github.com/vaclavstibor/streamlit-recommenders"

@@ -8,7 +8,7 @@ Practical API overview. Formal contracts: [CONTRACTS.md](CONTRACTS.md).
 pip install streamlit-recommenders          # or, from a clone: pip install -e ".[dev,training]"
 python -m streamlit_recommenders.data.prepare --dataset ml-latest-small # or ml-latest, ml-25m, ml-32m; add --with-posters (needs TMDB_API_KEY)
 python examples/train_baseline_artifacts.py --data data/ml-latest-small # Additional training script for baseline models and exporting artifacts
-SR_DATA_DIR=data/ml-latest-small streamlit run examples/3_models_comparison_rows.py # 3 models comparison (in rows layout) library demonstration
+SR_DATA_DIR=data/ml-latest-small streamlit run examples/compare_models_rows.py # 3 models comparison (in rows layout) library demonstration
 ```
 
 Requires **Python ≥3.10**.
@@ -22,11 +22,11 @@ Requires **Python ≥3.10**.
 | Data prep | `prepare_movielens`, `prepare_goodbooks`, `is_complete` |
 | Params | `slider`, `selectbox`, `param_value` |
 | Layouts | `rows`, `grid`, `cards` |
-| Session | `current_user`, `selected_items`, `selections` |
+| Session | `current_user`, `selected_items`, `disliked_items`, `displayed_items`, `selections` |
 | Content | `plot`, `table`, `markdown`, `markdown_file` |
 | Viz helpers | `dataset_info`, `recommendation_overlap_matrix`, `plot_overlap_heatmap`, `plot_metric_comparison`, `plot_ranked_items`, `plot_score_distribution` |
 | Metrics | `evaluate`, `hit_rate_at_k`, `recall_at_k`, `ndcg_at_k`, `mrr_at_k`, `coverage` |
-| Models | `ItemKNNRecommender`, `EASERecommender`, `SequentialCFRecommender`, `ArtifactRecommender`, `BaseRecommender` |
+| Models | `BaseRecommender` (subclass to define a model), `ArtifactRecommender` (load exported `.npz`) |
 
 ## `sr.run()`
 
@@ -124,15 +124,16 @@ One optional script trains the three default baseline families and exports NumPy
 ```bash
 pip install -e ".[training]"
 .venv/bin/python examples/train_baseline_artifacts.py --data data/<dataset-name>
-SR_DATA_DIR=data/<dataset-name> streamlit run examples/3_models_comparison_rows.py
+SR_DATA_DIR=data/<dataset-name> streamlit run examples/compare_models_rows.py
 ```
 
 The script writes `artifacts/itemknn.npz`, `artifacts/ease.npz`, and `artifacts/sequential_cf.npz`. Each artifact contains `item_ids`, `weights`, and `popularity`; the demo loads only these arrays and never imports the training code.
 
-Recommended baseline story:
+Reference baselines are **defined in `examples/reference_recommenders.py`** (subclassing
+`BaseRecommender`), not shipped by the library — copy one as a starting point:
 
-| Family | Built-in class | Use |
-|--------|----------------|-----|
+| Family | Reference class | Use |
+|--------|-----------------|-----|
 | ItemKNN | `ItemKNNRecommender` | classic item-item CF baseline |
 | EASE | `EASERecommender` | strong shallow linear implicit-feedback baseline |
 | Sequential CF | `SequentialCFRecommender` | timestamped next-item baseline; compare to SASRec-style models |
@@ -177,7 +178,11 @@ sr.plot_metric_comparison(metrics)
 sr.dataset_info(items, train)
 ```
 
-The reusable dataset block summarizes item/interactions tables and exposes simple distribution plots for interactions per user, genres, and categorical item metadata.
+The reusable dataset block shows headline metrics (item/user/interaction counts, matrix
+density) and a tabbed switcher over distribution plots — item genres (default), interactions
+per user, interactions per item (popularity long tail), rating distribution, and categorical
+item metadata. The tabs and chart styling match the results-inspection plots for a consistent
+look.
 
 ## Recommendation Agreement
 
@@ -192,11 +197,11 @@ The overlap helper computes pairwise Jaccard agreement between model outputs and
 
 | File | Shows |
 |------|-------|
-| `2_builtin_recommenders.py` | Way 2: fit built-in baselines on interactions (no artifacts) and compare |
-| `3_models_comparison_rows.py` | Lead demo (way 1): compare ItemKNN, EASE, and Sequential CF artifacts in rows layout |
-| `4_swipe_deck_cards.py` | Single-model swipe deck (cards layout) with like/dislike/skip and auto-refresh |
+| `reference_recommenders.py` | Way 2: define models by subclassing `BaseRecommender` (ItemKNN/EASE/SeqCF), fit in memory, and compare |
+| `compare_models_rows.py` | Lead demo (way 1): compare ItemKNN, EASE, and Sequential CF artifacts in rows layout |
+| `swipe_deck_cards.py` | Single-model swipe deck (cards layout) with like/dislike/skip; wraps EASE in a feedback-aware model that uses dislikes as a negative signal |
+| `compare_models_grid.py` | Grid layout with a sidebar model selector (one artifact at a time) |
 | `train_baseline_artifacts.py` | Train/export SciPy/NumPy baseline artifacts on a local `data/<dataset-name>` folder |
-| `artifact_recommender.py` | Example glue: `load_artifact_models` + re-export of `sr.ArtifactRecommender` (I/O lives in `sr.data`) |
 
 ## Not yet implemented
 

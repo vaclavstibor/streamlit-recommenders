@@ -13,9 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   object, or dict of named models (compare mode) into an interactive Streamlit demo.
 - Layouts: `rows` (scrollable poster rows), `grid` (catalog grid), and `cards`
   (swipe deck with Like / Dislike / Skip and automatic refresh).
-- Built-in reference recommenders: `ItemKNNRecommender`, `EASERecommender`,
-  `SequentialCFRecommender`, and `ArtifactRecommender` for exported `.npz` weights,
-  all on a shared `BaseRecommender` / `RecommenderProtocol` contract.
+- Recommender contract: `BaseRecommender` (subclass and implement `scores()`),
+  `ArtifactRecommender` (load exported `.npz` weights), and the `RecommenderProtocol`.
+  The library ships no models; ItemKNN/EASE/Sequential CF are reference
+  implementations in `examples/reference_recommenders.py`.
 - Pandas-first data contract: `Dataset`, `ColumnMap`, loaders, and validation.
 - Dataset preparation CLI (`python -m streamlit_recommenders.data.prepare`) for
   MovieLens and goodbooks-10k, with optional TMDB poster enrichment.

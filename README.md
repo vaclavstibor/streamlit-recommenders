@@ -1,7 +1,5 @@
 # streamlit-recommenders
 
-> TODO: This readme will be shorter.
-
 **Turn a trained recommender into an interactive, inspectable web demo in a few lines of Python.**
 
 [![PyPI](https://img.shields.io/pypi/v/streamlit-recommenders.svg)](https://pypi.org/project/streamlit-recommenders/)
@@ -95,7 +93,7 @@ sr.run(
 The library owns the interactive layer; you provide recommendations in whichever of these fits your workflow:
 
 1. **Bring your trained model / weights.** Export your model to plain arrays (or keep the object) and expose `get_recommendations()`. The lead demo uses `sr.ArtifactRecommender`, which loads exported `.npz` weights. Subclass `sr.BaseRecommender` (implement `scores()`) for custom trained models.
-2. **Train with a built-in definition.** Fit a reference recommender directly on your interactions: `model = sr.EASERecommender.from_interactions(train)` (or use ItemKNN or Sequential CF). `from_interactions` is the fit step.
+2. **Start from a reference baseline.** ItemKNN, EASE, and Sequential CF are defined in `examples/reference_recommenders.py` by subclassing `sr.BaseRecommender` — copy one and fit it in memory with `Model.from_interactions(train, items)`. These are reference implementations to adapt, not library imports.
 3. **Thin function adapter.** Skip classes entirely and write a plain `def get_recommendations(user_id, k, session_items=None, **params): ...` around any external scorer or API.
 
 All three return ordered item ids and drop straight into `sr.run(...)`.
@@ -143,14 +141,22 @@ TMDB_API_KEY=your_key python -m streamlit_recommenders.data.prepare --dataset ml
 
 ### Books — goodbooks-10k
 
-Book covers ship as URLs inside the dataset itself, so no image enrichment is needed. The download comes from Kaggle via [`kagglehub`](https://github.com/Kaggle/kagglehub) (install it first — it is not a core dependency):
+Book covers ship as URLs inside the dataset itself, so no image enrichment is needed. The
+download comes from Kaggle via [`kagglehub`](https://github.com/Kaggle/kagglehub), which is
+**not a core dependency** — install it first (otherwise preparation stops with a
+`goodbooks-10k not found locally … install kagglehub` message):
 
 ```bash
-pip install "streamlit-recommenders[goodbooks]"
+pip install "streamlit-recommenders[goodbooks]"     # installs kagglehub
 python -m streamlit_recommenders.data.prepare --dataset goodbooks   # or goodbooks-10k
+SR_DATA_DIR=data/goodbooks-10k streamlit run examples/compare_models_rows.py
 ```
 
-The dataset is public, so `kagglehub` usually needs no credentials; if your environment requires them, provide `~/.kaggle/kaggle.json` or set `KAGGLE_USERNAME` and `KAGGLE_KEY`. Alternatively, skip Kaggle entirely by placing `books.csv`/`ratings.csv` into `data/goodbooks-10k/` yourself.
+The dataset is public, so `kagglehub` usually needs no credentials. If your environment does
+require them (the same way MovieLens posters need `TMDB_API_KEY`), authenticate Kaggle with a
+`~/.kaggle/kaggle.json` token or the `KAGGLE_USERNAME` / `KAGGLE_KEY` environment variables.
+Alternatively, skip Kaggle entirely by placing `books.csv` / `ratings.csv` into
+`data/goodbooks-10k/` yourself.
 
 ### Bring your own domain
 
@@ -161,7 +167,7 @@ Any domain works as long as you produce the standard tables (see [Data standard]
 | Layout | Display |
 |--------|---------|
 | `rows` | One horizontal row of clickable poster cards with side scroll |
-| `grid` | Catalog-style clickable poster grid with configurable columns |
+| `grid` | Catalog-style clickable poster grid with configurable rows and columns |
 | `cards` | Swipe deck: one card at a time with Like / Dislike / Skip; refreshes after `swipes_per_refresh` swipes |
 
 `rows` and `grid` use clickable poster cards (hover title, description tooltip). Compare mode (`get_recommendations={...}`) always uses `rows`; the `cards` swipe deck is single-model.
@@ -169,15 +175,42 @@ Any domain works as long as you produce the standard tables (see [Data standard]
 ## Session UX
 
 1. Click item cards to add them to **Selected this session**; click selected cards again to unselect
-2. Click **Get Recommendations** to refresh all compared models with current selections
-3. Read state in `body()`: `sr.selected_items()`, `sr.current_user()`, `sr.param_value("alpha")`
+2. In the swipe deck, **Like** / **Dislike** / **Skip** each card; dislikes appear in a **Disliked this session** strip
+3. Click **Get Recommendations** to refresh all compared models with current selections
+4. Read state in `body()`: `sr.selected_items()`, `sr.disliked_items()`, `sr.displayed_items(label)`, `sr.current_user()`, `sr.param_value("alpha")`
+
+## How recommendations are built
+
+The evidence a model scores against is the **user profile** — the union of the selected user's
+**history** and their **current-session interactions**:
+
+1. **History.** For a dataset user, their past interactions (`interactions` table) form the
+   starting profile. The **Try yourself** session user starts empty, so it is driven purely by
+   what you click.
+2. **Session interactions.** Clicking a card (or swiping **Like**) adds an item to
+   `session_items`; swiping **Dislike** records it with `sentiment: "dislike"`; **Skip** only
+   marks the card as seen. These accumulate in the session state as you go.
+3. **Refresh.** On **Get Recommendations**, the library passes the merged evidence to your model
+   as `session_items` (plus `selections` metadata). It also unions history with session likes to
+   avoid re-recommending already-seen items (`effective_seen`). So each refresh folds everything
+   you have done so far into the profile.
+4. **Scoring & weighting.** How the profile becomes a ranking is your model's business. The
+   bundled `ArtifactRecommender` builds a binary profile vector over `history + session_items`
+   and multiplies it by the exported weight matrix; the optional **History window** control caps
+   how many recent items count, and Sequential CF scores from the last item only.
+
+Feedback is a first-class part of the contract: `session_items` carries likes, `selections`
+carries dislike sentiment, and skips are excluded. The reference recommenders only *exclude*
+disliked/skipped items, but a custom model can read the dislike sentiment as a negative signal —
+see `examples/swipe_deck_cards.py`. Full shapes are in
+[docs/CONTRACTS.md](https://github.com/vaclavstibor/streamlit-recommenders/blob/main/docs/CONTRACTS.md).
 
 ## Built-ins
 
 | Area | API |
 |------|-----|
 | Data | `Dataset`, `ColumnMap`, `load_dataset()`, `load_local_dataset()`, `validate_dataset()` |
-| Recommenders | `BaseRecommender`, `ArtifactRecommender`, `ItemKNNRecommender`, `EASERecommender`, `SequentialCFRecommender` |
+| Recommenders | `BaseRecommender`, `ArtifactRecommender`, `load_artifacts()` — ItemKNN / EASE / Sequential CF are reference implementations in `examples/reference_recommenders.py`, not library imports |
 | Metrics | `evaluate()`, `hit_rate_at_k()`, `recall_at_k()`, `ndcg_at_k()`, `mrr_at_k()`, `coverage()` |
 | Viz | `dataset_info()`, `recommendation_overlap_matrix()`, `plot_overlap_heatmap()`, `plot_metric_comparison()`, `plot_ranked_items()`, `plot_score_distribution()` |
 
@@ -189,17 +222,17 @@ Use three baseline families by default:
 - **EASE** for a strong shallow linear implicit-feedback baseline.
 - **Sequential CF** for timestamped next-item behavior.
 
-The package includes lightweight versions for demos. For full training, use any training code externally and export pure artifacts that match the same `get_recommendations()` contract.
+Lightweight reference implementations live in `examples/reference_recommenders.py` (copy-and-adapt, not shipped in the package), and `examples/train_baseline_artifacts.py` exports them as `.npz` artifacts. For full training, use any training code externally and export pure artifacts that match the same `get_recommendations()` contract.
 
 To train the three baseline artifacts and inspect them:
 
 ```bash
 pip install "streamlit-recommenders[training]"
 
-# python -m streamlit_recommenders.data.prepare --dataset ml-latest-small 
-TMDB_API_KEY=627497851a1175886c7c521a2da19233 python -m streamlit_recommenders.data.prepare --dataset ml-latest-small --with-posters
+# Optionally enrich with TMDB posters/descriptions first (see Dataset preparation):
+TMDB_API_KEY=your_key python -m streamlit_recommenders.data.prepare --dataset ml-latest-small --with-posters
 python examples/train_baseline_artifacts.py --data data/ml-latest-small
-SR_DATA_DIR=data/ml-latest-small streamlit run examples/3_models_comparison_rows.py
+SR_DATA_DIR=data/ml-latest-small streamlit run examples/compare_models_rows.py
 ```
 
 The training script reads standard `items.csv`/`interactions.csv`, or raw MovieLens-style `movies.csv`/`ratings.csv`, creates train/test splits if needed, and writes pure `.npz` artifacts for ItemKNN, EASE, and Sequential CF. The Streamlit demo loads only those arrays, not the training code.
@@ -210,25 +243,11 @@ Examples live in the [GitHub repository](https://github.com/vaclavstibor/streaml
 
 | File | Pattern |
 |------|---------|
-| `2_builtin_recommenders.py` | Way 2: fit built-in baselines on interactions (no artifacts) and compare |
-| `3_models_comparison_rows.py` | Lead demo (way 1): compare ItemKNN, EASE, and Sequential CF artifacts in rows layout |
-| `4_swipe_deck_cards.py` | Single-model swipe deck (cards layout) with like/dislike/skip |
-| `5_models_comparsion_grid.py` | Grid layout with a sidebar model selector (one artifact at a time) |
+| `reference_recommenders.py` | Way 2: define models by subclassing `BaseRecommender` (ItemKNN / EASE / Sequential CF), fit in memory, and compare |
+| `compare_models_rows.py` | Lead demo (way 1): compare ItemKNN, EASE, and Sequential CF artifacts in rows layout |
+| `swipe_deck_cards.py` | Single-model swipe deck (cards layout) with like/dislike/skip; wraps EASE in a feedback-aware model that uses dislikes as a negative signal |
+| `compare_models_grid.py` | Grid layout with a sidebar model selector (one artifact at a time) |
 | `train_baseline_artifacts.py` | Train/export SciPy/NumPy baseline artifacts under `data/<dataset-name>/artifacts` |
-| `artifact_recommender.py` | Example glue: `load_artifact_models` + re-export of `sr.ArtifactRecommender` |
-
-## Documentation
-
-- [Capabilities](https://github.com/vaclavstibor/streamlit-recommenders/blob/main/docs/CAPABILITIES.md) — full public API overview
-- [Contracts](https://github.com/vaclavstibor/streamlit-recommenders/blob/main/docs/CONTRACTS.md) — data shapes and function signatures
-- [Architecture](https://github.com/vaclavstibor/streamlit-recommenders/blob/main/docs/ARCHITECTURE.md) — module flow
-
-## Known limitations
-
-- Single-page Streamlit applications; no production serving or user-study management.
-- The data contract is pandas-based.
-- Layout rendering resolves item columns through `ColumnMap` defaults (`item_id`, `title`, `image_url`, `description`). Custom `ColumnMap`s passed to `Dataset` are not automatically threaded into recommenders and layouts — pass `item_columns=` to `sr.run` instead.
-- Training pipelines and heavy model libraries stay out of scope: RecBole, Cornac, RecPack, and LensKit should remain external so the core library stays lightweight.
 
 ## Citation
 
