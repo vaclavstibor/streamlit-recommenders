@@ -88,8 +88,7 @@ def import_scipy_sparse():
         from scipy import sparse
     except ImportError as exc:
         raise SystemExit(
-            "Training artifacts needs scipy. Install optional tooling with: "
-            "pip install -e \".[training]\""
+            "Training artifacts needs scipy. Install it with: pip install scipy"
         ) from exc
     return sparse
 

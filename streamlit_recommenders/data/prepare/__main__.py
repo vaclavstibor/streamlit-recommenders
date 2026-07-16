@@ -5,12 +5,18 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from streamlit_recommenders.data.prepare.goodbooks import prepare_goodbooks
 from streamlit_recommenders.data.prepare.movielens import MOVIELENS_URLS, prepare_movielens
 
 
 def main() -> None:
     """Parse CLI arguments and dispatch to the goodbooks or MovieLens preparer."""
+    # Load TMDB_API_KEY / KAGGLE_* etc. from a local .env, if present. Real
+    # environment variables already set take precedence.
+    load_dotenv()
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--dataset",

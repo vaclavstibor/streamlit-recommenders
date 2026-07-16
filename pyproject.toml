@@ -4,8 +4,8 @@ version = "0.1.0"
 description = "Lightweight Streamlit library for interactive recommender system demos"
 readme = "README.md"
 requires-python = ">=3.10"
-license = "Apache-2.0"
-license-files = ["LICENSE", "NOTICE"]
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     { name = "Václav Stibor" },
     { name = "Vojtěch Vančura" },
@@ -28,12 +28,13 @@ dependencies = [
     "plotly>=5.0",
     "pyyaml>=6.0",
     "numpy>=1.24",
+    "python-dotenv>=1.0",
+    "scipy",
+    "kagglehub",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "build", "twine"]
-training = ["scipy"]
-goodbooks = ["kagglehub"]
 docs = ["mkdocs-material>=9.5", "mkdocstrings[python]>=0.24"]
 
 [project.urls]

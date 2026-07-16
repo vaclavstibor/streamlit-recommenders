@@ -80,7 +80,7 @@ def _download_goodbooks(root: Path) -> None:
     except ImportError as exc:
         raise SystemExit(
             "goodbooks-10k not found locally. Either place books.csv/ratings.csv in "
-            f'{root}, or install kagglehub (pip install "streamlit-recommenders[goodbooks]") '
+            f"{root}, or install kagglehub (pip install kagglehub) "
             f"to auto-download {KAGGLE_DATASET}."
         ) from exc
 
