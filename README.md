@@ -4,7 +4,9 @@
 
 [![PyPI](https://img.shields.io/pypi/v/streamlit-recommenders.svg)](https://pypi.org/project/streamlit-recommenders/)
 [![Python](https://img.shields.io/pypi/pyversions/streamlit-recommenders.svg)](https://pypi.org/project/streamlit-recommenders/)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/vaclavstibor/streamlit-recommenders/blob/main/LICENSE)
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue.svg)](https://vaclavstibor.github.io/streamlit-recommenders/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://recommenders-demo.streamlit.app)
 
 ## Why streamlit-recommenders?
 
@@ -26,12 +28,10 @@ The goal: make interactive model inspection a standard, low-effort artifact to p
 pip install streamlit-recommenders
 ```
 
-Extras:
+A single install pulls in everything the library and examples need (including `scipy` for baseline training and `kagglehub` for the goodbooks-10k download). A `dev` extra adds tooling for contributors:
 
 ```bash
-pip install "streamlit-recommenders[training]"   # scipy, for the baseline training example
-pip install "streamlit-recommenders[goodbooks]"  # kagglehub, for the goodbooks-10k download
-pip install "streamlit-recommenders[dev]"        # pytest, build, twine
+pip install "streamlit-recommenders[dev]"   # pytest, build, twine
 ```
 
 From source:
@@ -39,7 +39,7 @@ From source:
 ```bash
 git clone https://github.com/vaclavstibor/streamlit-recommenders.git
 cd streamlit-recommenders
-pip install -e ".[dev,training]"
+pip install -e ".[dev]"
 ```
 
 ## Quick start
@@ -123,6 +123,21 @@ Missing posters are fine: item cards fall back to a bundled placeholder image. K
 
 Two dataset families are supported out of the box, each one command away. A completion manifest prevents accidental re-downloads, and every prepared folder ends up in the same standard layout (`items.csv`, `interactions.csv`, ...) under `data/<dataset-name>/`.
 
+### Keys and paths — `.env` or inline
+
+Keys (`TMDB_API_KEY` / `TMDB_BEARER_TOKEN`, `KAGGLE_USERNAME` / `KAGGLE_KEY`) and the `SR_DATA_DIR` path can be provided two equivalent ways:
+
+- **`.env` file (recommended — keeps the showcase commands clean).** Copy [`.env.example`](https://github.com/vaclavstibor/streamlit-recommenders/blob/main/.env.example) to `.env` in the repo root and fill it in. The preparation CLI loads `.env` automatically, so key-based commands need no prefix:
+  ```bash
+  python -m streamlit_recommenders.data.prepare --dataset ml-latest-small --with-posters
+  ```
+- **Inline environment variables.** Prefix the command, as shown throughout the examples below:
+  ```bash
+  TMDB_API_KEY=your_key python -m streamlit_recommenders.data.prepare --dataset ml-latest-small --with-posters
+  ```
+
+Real environment variables take precedence over `.env`. Note: only the preparation CLI auto-loads `.env`. The example Streamlit apps read `SR_DATA_DIR` from the shell environment, so either export it once (`set -a && source .env && set +a`) or pass it inline (`SR_DATA_DIR=data/ml-latest-small streamlit run ...`).
+
 ### Movies — MovieLens
 
 Supported variants: `ml-latest-small`, `ml-latest`, `ml-25m`, `ml-32m` (downloaded directly from GroupLens, no account needed):
@@ -142,12 +157,10 @@ TMDB_API_KEY=your_key python -m streamlit_recommenders.data.prepare --dataset ml
 ### Books — goodbooks-10k
 
 Book covers ship as URLs inside the dataset itself, so no image enrichment is needed. The
-download comes from Kaggle via [`kagglehub`](https://github.com/Kaggle/kagglehub), which is
-**not a core dependency** — install it first (otherwise preparation stops with a
-`goodbooks-10k not found locally … install kagglehub` message):
+download comes from Kaggle via [`kagglehub`](https://github.com/Kaggle/kagglehub), which ships
+with the library:
 
 ```bash
-pip install "streamlit-recommenders[goodbooks]"     # installs kagglehub
 python -m streamlit_recommenders.data.prepare --dataset goodbooks   # or goodbooks-10k
 SR_DATA_DIR=data/goodbooks-10k streamlit run examples/compare_models_rows.py
 ```
@@ -227,8 +240,6 @@ Lightweight reference implementations live in `examples/reference_recommenders.p
 To train the three baseline artifacts and inspect them:
 
 ```bash
-pip install "streamlit-recommenders[training]"
-
 # Optionally enrich with TMDB posters/descriptions first (see Dataset preparation):
 TMDB_API_KEY=your_key python -m streamlit_recommenders.data.prepare --dataset ml-latest-small --with-posters
 python examples/train_baseline_artifacts.py --data data/ml-latest-small
@@ -265,4 +276,4 @@ If you use `streamlit-recommenders` in your research, please cite:
 
 ## License
 
-Apache License 2.0 — see [LICENSE](https://github.com/vaclavstibor/streamlit-recommenders/blob/main/LICENSE).
+MIT License — see [LICENSE](https://github.com/vaclavstibor/streamlit-recommenders/blob/main/LICENSE).

@@ -2,6 +2,8 @@
 
 This directory is for local datasets and generated artifacts that should not be committed.
 
+Keys and paths can be provided two ways: a `.env` file in the repo root (copy `.env.example`; auto-loaded by the preparation CLI) or inline before the command as shown below. Using `.env` is recommended to keep commands clean. `SR_DATA_DIR` for the example apps must be in the shell environment (export it or pass it inline).
+
 ## Movies — MovieLens preprocessing
 
 Use the library CLI to download a MovieLens ZIP, convert it to the local schema, and optionally fetch TMDB metadata/posters:
@@ -15,7 +17,7 @@ Supported datasets are `ml-latest-small`, `ml-latest`, `ml-25m`, and `ml-32m`. T
 
 ## Books — goodbooks-10k preprocessing
 
-Book covers ship as URLs inside the dataset, so no enrichment step is needed. The download uses Kaggle via `kagglehub` (`pip install "streamlit-recommenders[goodbooks]"`); alternatively place `books.csv`/`ratings.csv` into `data/goodbooks-10k/` manually:
+Book covers ship as URLs inside the dataset, so no enrichment step is needed. The download uses Kaggle via `kagglehub` (bundled with the library); alternatively place `books.csv`/`ratings.csv` into `data/goodbooks-10k/` manually:
 
 ```bash
 python -m streamlit_recommenders.data.prepare --dataset goodbooks

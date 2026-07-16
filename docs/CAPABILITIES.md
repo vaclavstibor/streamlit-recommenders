@@ -5,13 +5,15 @@ Practical API overview. Formal contracts: [CONTRACTS.md](CONTRACTS.md).
 ## Install & run
 
 ```bash
-pip install streamlit-recommenders          # or, from a clone: pip install -e ".[dev,training]"
+pip install streamlit-recommenders          # or, from a clone: pip install -e ".[dev]"
 python -m streamlit_recommenders.data.prepare --dataset ml-latest-small # or ml-latest, ml-25m, ml-32m; add --with-posters (needs TMDB_API_KEY)
 python examples/train_baseline_artifacts.py --data data/ml-latest-small # Additional training script for baseline models and exporting artifacts
 SR_DATA_DIR=data/ml-latest-small streamlit run examples/compare_models_rows.py # 3 models comparison (in rows layout) library demonstration
 ```
 
 Requires **Python ≥3.10**.
+
+Keys (`TMDB_API_KEY` / `TMDB_BEARER_TOKEN`, `KAGGLE_USERNAME` / `KAGGLE_KEY`) and `SR_DATA_DIR` can go in a `.env` file (copy `.env.example`) or be set inline as above. The preparation CLI auto-loads `.env`; the example apps read `SR_DATA_DIR` from the shell (export it or pass it inline). `.env` keeps the showcase commands clean.
 
 ## Public API
 
@@ -122,7 +124,6 @@ sr.run(
 One optional script trains the three default baseline families and exports NumPy artifacts:
 
 ```bash
-pip install -e ".[training]"
 .venv/bin/python examples/train_baseline_artifacts.py --data data/<dataset-name>
 SR_DATA_DIR=data/<dataset-name> streamlit run examples/compare_models_rows.py
 ```
@@ -136,7 +137,7 @@ Reference baselines are **defined in `examples/reference_recommenders.py`** (sub
 |--------|-----------------|-----|
 | ItemKNN | `ItemKNNRecommender` | classic item-item CF baseline |
 | EASE | `EASERecommender` | strong shallow linear implicit-feedback baseline |
-| Sequential CF | `SequentialCFRecommender` | timestamped next-item baseline; compare to SASRec-style models |
+| Sequential CF | `SequentialCFRecommender` | timestamped next-item baseline (first-order item transitions) |
 
 ## Item cards and layouts
 

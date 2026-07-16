@@ -120,7 +120,7 @@ Recommended baseline families (defined as reference implementations in
 |--------|-------------------------------|--------------------|
 | Item-item CF | `ItemKNNRecommender` | Deshpande & Karypis, ACM TOIS 2004 |
 | Shallow linear CF | `EASERecommender` | Steck, WWW 2019 |
-| Sequential CF | `SequentialCFRecommender` | SASRec, Kang & McAuley, ICDM 2018 |
+| Sequential CF | `SequentialCFRecommender` | — |
 
 ## Runtime params
 
