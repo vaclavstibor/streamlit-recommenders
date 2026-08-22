@@ -113,7 +113,7 @@ Examples live in [`examples/`](examples/) (not in the wheel):
   title   = {StreamlitRecommenders: Towards Recommendation Inspectability as a New Reproducibility Standard},
   year    = {2026},
   url     = {https://github.com/vaclavstibor/streamlit-recommenders},
-  version = {0.1.0}
+  version = {0.1.1}
 }
 ```
 
