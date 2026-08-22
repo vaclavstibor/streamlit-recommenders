@@ -9,6 +9,7 @@
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/vaclavstibor/streamlit-recommenders/blob/main/LICENSE)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue.svg)](https://vaclavstibor.github.io/streamlit-recommenders/)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://recommenders-demo.streamlit.app)
+[![Video](https://img.shields.io/badge/Video-YouTube-FF0000?logo=youtube&logoColor=white)](https://youtu.be/BvplkLanLwc)
 
 <br clear="left"/>
 
