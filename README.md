@@ -1,3 +1,5 @@
+<img src="docs/figures/logo.svg" alt="streamlit-recommenders logo" align="left" width="96" hspace="18"/>
+
 # streamlit-recommenders: Interactive Inspection for Recommender Systems
 
 **Turn a trained recommender into an interactive, inspectable web demo in a few lines of Python.**
@@ -7,6 +9,8 @@
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/vaclavstibor/streamlit-recommenders/blob/main/LICENSE)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue.svg)](https://vaclavstibor.github.io/streamlit-recommenders/)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://recommenders-demo.streamlit.app)
+
+<br clear="left"/>
 
 ## Why streamlit-recommenders?
 
@@ -41,7 +45,7 @@ for source installs and the `[dev]` extra.
 
 ## Documentation
 
-Full documentation — concepts, guides, and API reference — lives at
+Full documentation lives at
 [vaclavstibor.github.io/streamlit-recommenders](https://vaclavstibor.github.io/streamlit-recommenders/).
 New here? Start with the [Getting started guide](https://vaclavstibor.github.io/streamlit-recommenders/getting-started/).
 
