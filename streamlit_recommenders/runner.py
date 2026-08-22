@@ -29,12 +29,14 @@ from streamlit_recommenders.runtime.state import (
     get_cold_start_seed,
     get_disliked_ids,
     get_displayed_recs,
+    get_section_notice,
     get_selected_ids,
     get_selections,
     get_swipe_seen_ids,
     init_session_state,
     set_current_user,
     set_displayed_recs,
+    set_section_notice,
     sync_run_context,
 )
 from streamlit_recommenders.runtime.keys import user_select_key
@@ -48,6 +50,63 @@ from streamlit_recommenders.widgets.user_profile import history_item_ids, render
 
 # Cold-start sampling: how many times k to request before sampling k.
 _COLD_START_POOL_FACTOR = 5
+
+
+def _popularity_order(items: pd.DataFrame, interactions: pd.DataFrame | None) -> list:
+    """Return item ids ordered by interaction count, catalog order as fallback.
+
+    Used to seed the empty-profile "Try yourself" session with a catalog sample
+    to react to, computed directly (not via a model) so the seed is never
+    mistaken for a recommender's output.
+
+    Args:
+        items: Item catalog DataFrame.
+        interactions: Optional interactions supplying popularity counts.
+
+    Returns:
+        Item ids most-popular first, or the catalog order when no interactions
+        are available.
+    """
+    if interactions is not None and "item_id" in interactions.columns:
+        return interactions["item_id"].value_counts().index.tolist()
+    if "item_id" in items.columns:
+        return items["item_id"].tolist()
+    return []
+
+
+def _fallback_notice(
+    get_recommendations_fn: Callable[..., list],
+    user_id: str | int,
+    session_items: list,
+    params: dict[str, Any],
+) -> dict | None:
+    """Return a popularity-fallback notice when the model has no signal.
+
+    Duck-types an optional ``fallback_reason`` on the recommender object (e.g.
+    :class:`ArtifactRecommender`); recommenders that do not expose it never
+    trigger a notice.
+
+    Args:
+        get_recommendations_fn: The recommender callable for this section.
+        user_id: Active user id.
+        session_items: Items selected during the current session.
+        params: Model parameters for this section.
+
+    Returns:
+        A ``{"level": "fallback", "text": ...}`` notice, or ``None``.
+    """
+    obj = getattr(get_recommendations_fn, "__self__", None)
+    if obj is None or not hasattr(obj, "fallback_reason"):
+        return None
+    if obj.fallback_reason(user_id, session_items=session_items, **params) != "popularity":
+        return None
+    return {
+        "level": "fallback",
+        "text": (
+            "Popularity fallback — the model has no signal for this profile, "
+            "so these items are not its own output."
+        ),
+    }
 
 
 def load_items(path: str, id_col: str = "item_id") -> pd.DataFrame:
@@ -229,6 +288,14 @@ def run(
     n_cols = int(resolved.pop("n_cols", 10))
     n_rows = int(resolved.pop("n_rows", 3))
     swipes_per_refresh = int(resolved.pop("swipes_per_refresh", swipes_per_refresh))
+    resolved["hide_seen"] = st.sidebar.checkbox(
+        "Hide already-seen items",
+        value=True,
+        help=(
+            "On (default) hides items in the user's history or current session. "
+            "Turn off to inspect the model's raw ranking, seen items included."
+        ),
+    )
     row_layout = "rows" if compare else layout
     if row_layout == "cards":
         k = max(k, swipes_per_refresh + 1)
@@ -262,34 +329,45 @@ def run(
     if disliked_ids:
         render_profile_strip(items, disliked_ids, "Disliked this session", columns=item_columns)
 
+    seed_pool = _popularity_order(items, interactions)
+
     def _compute_recommendations(label: str, get_recommendations_fn: Callable[..., list]) -> list:
         """Compute the recommendation ids for one section, handling cold start."""
         current_selected = get_selected_ids()
         section_selections = get_selections(label)
         params_for_label = {**resolved, **model_params.get(label, {})}
-        # The session user's empty profile would otherwise always show the
-        # same deterministic fallback; sample from a larger candidate pool
-        # so each fresh session starts with varied items to react to.
         cold_start = (
             user_id == SESSION_USER_ID
             and not current_selected
             and not section_selections
         )
-        request_k = k * _COLD_START_POOL_FACTOR if cold_start else k
+        if cold_start:
+            # Empty session profile: do NOT call the model — it would only
+            # return its popularity fallback. Show a labeled catalog sample to
+            # seed the profile instead, so nothing here is attributed to the
+            # model. Each section draws a different sample from the same pool.
+            rng = random.Random(f"{get_cold_start_seed()}:{label}")
+            pool = seed_pool[: max(k * _COLD_START_POOL_FACTOR, k)]
+            rec_ids = rng.sample(pool, k) if len(pool) > k else list(pool)
+            # The seed sample is drawn per section, but the "this is a seed, not
+            # model output" notice is shown once globally (see below) so compare
+            # mode doesn't repeat it under every model.
+            set_section_notice(label, None)
+            return rec_ids
+
         rec_ids = cached_get_recommendations(
             get_recommendations_fn,
             user_id,
-            request_k,
+            k,
             params_for_label,
             session_items=current_selected,
             selections=section_selections,
             excluded_item_ids=get_swipe_seen_ids(label) if row_layout == "cards" else None,
         )
-        if cold_start and len(rec_ids) > k:
-            # Seed per section: each compared model starts with a different
-            # sample, so the init state is not the same list repeated n times.
-            rng = random.Random(f"{get_cold_start_seed()}:{label}")
-            rec_ids = rng.sample(list(rec_ids), k)
+        set_section_notice(
+            label,
+            _fallback_notice(get_recommendations_fn, user_id, current_selected, params_for_label),
+        )
         return rec_ids
 
     def _refresh_all_recommendations() -> None:
@@ -303,6 +381,18 @@ def run(
             type="primary",
             use_container_width=True,
             on_click=_refresh_all_recommendations,
+        )
+
+    session_cold_start = (
+        user_id == SESSION_USER_ID
+        and not get_selected_ids()
+        and not any(get_selections(label) for label, _ in pairs)
+    )
+    if session_cold_start:
+        st.info(
+            "Pick a few items you like to start — this is a catalog sample to seed "
+            "the profile, not model recommendations.",
+            icon="🌱",
         )
 
     for label, get_recommendations_fn in pairs:
@@ -330,6 +420,7 @@ def run(
             on_get_recommendations=None if compare else _refresh_get_recommendations,
             n_cols=n_cols,
             swipes_per_refresh=swipes_per_refresh,
+            notice=get_section_notice(label),
         )
 
     if body:

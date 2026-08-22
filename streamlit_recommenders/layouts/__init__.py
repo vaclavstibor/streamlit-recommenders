@@ -26,6 +26,7 @@ def render_layout(
     on_get_recommendations: Callable[[], None] | None = None,
     n_cols: int = 10,
     swipes_per_refresh: int = DEFAULT_SWIPES_PER_REFRESH,
+    notice: dict | None = None,
 ) -> None:
     """Render a recommendation section using the named layout.
 
@@ -45,6 +46,9 @@ def render_layout(
             button (or swipe auto-refresh).
         n_cols: Column count for the grid layout.
         swipes_per_refresh: Swipes before the cards deck auto-refreshes.
+        notice: Optional provenance notice (``{"level", "text"}``) shown above
+            the items when they are a seed sample or popularity fallback rather
+            than the model's own output.
     """
     render_recommender_section(
         layout,
@@ -58,4 +62,5 @@ def render_layout(
         on_get_recommendations=on_get_recommendations,
         n_cols=n_cols,
         swipes_per_refresh=swipes_per_refresh,
+        notice=notice,
     )

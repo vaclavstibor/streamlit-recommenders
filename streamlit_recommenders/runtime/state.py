@@ -24,6 +24,7 @@ def init_session_state() -> None:
             "disliked_ids": [],
             "selections": {},
             "displayed_recs": {},
+            "displayed_notice": {},
             "swipe_counts": {},
             "swipe_skipped": {},
             "run_context_hash": None,
@@ -86,6 +87,7 @@ def sync_run_context(user_id: str | int, k: int, params: dict) -> None:
     if state.get("run_context_hash") != ctx_hash:
         state["run_context_hash"] = ctx_hash
         state["displayed_recs"] = {}
+        state["displayed_notice"] = {}
         state["swipe_counts"] = {}
         state["swipe_skipped"] = {}
 
@@ -96,6 +98,7 @@ def _reset_session(state: dict) -> None:
     state["disliked_ids"] = []
     state["selections"] = {}
     state["displayed_recs"] = {}
+    state["displayed_notice"] = {}
     state["swipe_counts"] = {}
     state["swipe_skipped"] = {}
 
@@ -134,6 +137,33 @@ def set_displayed_recs(section: str, rec_ids: list) -> None:
         rec_ids: Item ids rendered in that section.
     """
     get_state().setdefault("displayed_recs", {})[section] = list(rec_ids)
+
+
+def set_section_notice(section: str, notice: dict | None) -> None:
+    """Store (or clear) the provenance notice for a section's displayed recs.
+
+    A notice explains when the shown items are not the model's own output —
+    e.g. a cold-start seed sample or a popularity fallback — so the UI never
+    silently attributes such items to the recommender.
+
+    Args:
+        section: Section label the notice belongs to.
+        notice: ``{"level": "seed"|"fallback", "text": ...}`` or ``None``.
+    """
+    get_state().setdefault("displayed_notice", {})[section] = notice
+
+
+def get_section_notice(section: str) -> dict | None:
+    """Return the provenance notice for a section, or ``None`` if unset.
+
+    Args:
+        section: Section label to query.
+
+    Returns:
+        The stored notice dict, or ``None`` when the shown items are the
+        model's own output.
+    """
+    return get_state().get("displayed_notice", {}).get(section)
 
 
 def get_selections(section: str | None = None) -> list[dict] | dict[str, list[dict]]:

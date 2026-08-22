@@ -117,6 +117,40 @@ class ArtifactRecommender(BaseRecommender):
             return self.popularity.copy()
         return vector @ self.weights
 
+    def fallback_reason(
+        self,
+        user_id: str | int,
+        session_items: list | None = None,
+        **params,
+    ) -> str | None:
+        """Report whether scoring ``user_id`` would fall back to popularity.
+
+        Lets the UI flag a result that is the popularity fallback rather than
+        the model's own output, so an empty/unmapped profile (or a sequential
+        anchor with no outgoing transitions) is never silently attributed to
+        the recommender.
+
+        Args:
+            user_id: Id of the user that would be scored.
+            session_items: Items selected during the current session.
+            **params: Additional parameters; ``history_window`` is honored, the
+                rest are ignored.
+
+        Returns:
+            ``"popularity"`` if the score call would return the popularity
+            fallback, else ``None``.
+        """
+        session_items = session_items or []
+        if self.model_type == "sequential_cf":
+            anchor = self._last_item(user_id, session_items)
+            if anchor in self.item_index and self.weights[self.item_index[anchor]].any():
+                return None
+            return "popularity"
+        vector = self._user_vector(
+            user_id, session_items, history_window=params.get("history_window")
+        )
+        return None if vector.any() else "popularity"
+
     def score_frame(
         self,
         user_id: str | int,

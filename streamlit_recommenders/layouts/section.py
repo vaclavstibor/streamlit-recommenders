@@ -73,6 +73,7 @@ def render_recommender_section(
     on_get_recommendations: Callable[[], None] | None = None,
     n_cols: int = DEFAULT_GRID_COLS,
     swipes_per_refresh: int = DEFAULT_SWIPES_PER_REFRESH,
+    notice: dict | None = None,
 ) -> None:
     """Render a titled, bordered recommendation section for any layout.
 
@@ -94,6 +95,10 @@ def render_recommender_section(
             auto-refresh; the button is omitted when ``None``.
         n_cols: Column count for the grid layout.
         swipes_per_refresh: Swipes before the cards deck auto-refreshes.
+        notice: Optional provenance notice (``{"level", "text"}``) shown above
+            the items; ``"seed"`` marks a cold-start catalog sample and
+            ``"fallback"`` a popularity fallback, so neither is mistaken for the
+            model's own output.
     """
     selected = selected_ids or set()
     sections = all_sections or [section]
@@ -101,6 +106,11 @@ def render_recommender_section(
 
     st.subheader(title)
     with st.container(border=True):
+        if notice:
+            if notice.get("level") == "fallback":
+                st.warning(notice["text"], icon="⚠️")
+            else:
+                st.info(notice["text"], icon="🌱")
         if layout == "cards":
             render_swipe_deck(
                 entries,

@@ -62,12 +62,21 @@ class BaseRecommender:
             selections: UI feedback metadata; ignored here, subclasses that
                 want it should override this method.
             **params: Model-specific scoring parameters passed to ``scores()``.
+                The reserved ``hide_seen`` flag (default ``True``) is consumed
+                here rather than forwarded to ``scores()``.
 
         Returns:
             Up to ``k`` recommended item ids ranked by descending score.
         """
         # ``selections`` carries UI feedback metadata; subclasses that want it
         # should override ``get_recommendations``.
-        seen = effective_seen(getattr(self, "interactions", None), user_id, session_items)
+        # ``hide_seen`` lets a demo inspect the model's raw ranking (seen items
+        # included) instead of the default already-seen-filtered output.
+        hide_seen = params.pop("hide_seen", True)
+        seen = (
+            effective_seen(getattr(self, "interactions", None), user_id, session_items)
+            if hide_seen
+            else set()
+        )
         scores = self.scores(user_id, session_items=session_items, **params)
         return rank_scores(scores, self.item_ids, seen, k)
