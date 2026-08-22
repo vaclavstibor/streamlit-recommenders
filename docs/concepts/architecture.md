@@ -2,10 +2,9 @@
 
 `streamlit-recommenders` is a thin layer between your recommender and an interactive demo: you
 provide recommendations through one small contract, and the library owns everything interactive.
+This page zooms in through three levels — the idea, who owns what, and the module map.
 
-![System overview](figures/architecture.svg) TODO
-
-The rest of this page zooms in through three levels — the idea, who owns what, and the module map.
+![System overview](../figures/architecture.svg)
 
 ## Level 1 — The idea
 
@@ -22,8 +21,8 @@ flowchart LR
 ## Level 2 — Who owns what, and the session loop
 
 You own the data and the recommendations. The library owns the session profile, caching,
-comparison, metrics, and layouts. What the user does on the page (click, like, dislike, skip)
-feeds back into the profile and refreshes the recommendations.
+comparison, metrics, and layouts. What the user does on the page (click, like, dislike, skip) feeds
+back into the profile and refreshes the recommendations.
 
 ```mermaid
 flowchart LR
@@ -47,8 +46,8 @@ flowchart LR
 ```
 
 The profile a model scores against is the union of the selected user's **history** and their
-**current-session** interactions; see [CONTRACTS.md](CONTRACTS.md) for the exact shapes and the
-step-by-step session flow.
+**current-session** likes; see **[Feedback & session](feedback.md)** for the exact signals,
+seen-filtering, and fallback handling.
 
 ## Level 3 — Module map
 
@@ -81,10 +80,9 @@ flowchart TB
   run --> present
 ```
 
-**Request flow:** sidebar params + selected user → cached `get_recommendations()` (via the
-adapter) → ranked item ids stored in session state → poster carousel / swipe deck. A click updates
-the session profile; **Get Recommendations** recomputes every compared row against the same
-evidence.
+**Request flow:** sidebar params + selected user → cached `get_recommendations()` (via the adapter)
+→ ranked item ids stored in session state → poster carousel / swipe deck. A click updates the
+session profile; **Get Recommendations** recomputes every compared row against the same evidence.
 
 ## Boundary
 
@@ -97,7 +95,5 @@ recommender is displayed, compared, and probed with session feedback.
   (retry/backoff, completeness report), and a `dataset.json` manifest (`is_complete`) makes
   preparation idempotent.
 - **Models do not.** The library ships only the `BaseRecommender` contract and the
-  `ArtifactRecommender` loader. Reference baselines (`ItemKNNRecommender`, `EASERecommender`,
-  `SequentialCFRecommender`) live in `examples/reference_recommenders.py` as copy-and-adapt
-  starting points. Heavy frameworks (RecBole, Cornac, RecPack, LensKit, Elliot) stay external,
-  reached through the recommender contract rather than added as dependencies.
+  `ArtifactRecommender` loader. Reference baselines live in `examples/reference_recommenders.py` as
+  copy-and-adapt starting points; heavy frameworks stay external, reached through the contract.

@@ -33,9 +33,17 @@ theme:
 
 nav:
   - Home: index.md
-  - Capabilities: CAPABILITIES.md
-  - Contracts: CONTRACTS.md
-  - Architecture: ARCHITECTURE.md
+  - Getting started: getting-started.md
+  - Concepts:
+    - Recommender contract: concepts/recommender.md
+    - Data contract: concepts/data.md
+    - Feedback & session: concepts/feedback.md
+    - Inspection views: concepts/inspection.md
+    - Architecture: concepts/architecture.md
+  - Guides:
+    - Examples by interface: guides/examples.md
+    - Datasets: guides/datasets.md
+    - Training & artifacts: guides/artifacts.md
   - API reference: api.md
 
 markdown_extensions:
