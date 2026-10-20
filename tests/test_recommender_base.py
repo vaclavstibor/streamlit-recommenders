@@ -56,3 +56,30 @@ def test_base_get_recommendations_hide_seen_toggle():
     assert model.get_recommendations(0, 3) == [12]
     # hide_seen=False exposes the model's raw ranking, seen items included.
     assert model.get_recommendations(0, 3, hide_seen=False) == [10, 11, 12]
+
+
+DISLIKE = {"item_id": 11, "rank": None, "source": "S", "sentiment": "dislike"}
+
+
+def test_base_passes_dislikes_only_to_scores_that_declare_them():
+    class _Opted(BaseRecommender):
+        interactions = None
+        item_ids = [10, 11, 12]
+
+        def scores(self, user_id, session_items=None, disliked_items=None, **params):
+            self.received = disliked_items
+            return np.array([0.1, 0.9, 0.5])
+
+    class _Legacy(BaseRecommender):
+        interactions = None
+        item_ids = [10, 11, 12]
+
+        def scores(self, user_id, session_items=None, **params):
+            assert "disliked_items" not in params
+            return np.array([0.1, 0.9, 0.5])
+
+    opted = _Opted()
+    # A disliked item counts as seen, whether or not the model reads dislikes.
+    assert opted.get_recommendations(0, 3, selections=[DISLIKE]) == [12, 10]
+    assert opted.received == [11]
+    assert _Legacy().get_recommendations(0, 3, selections=[DISLIKE]) == [12, 10]

@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 from streamlit_recommenders.data.prepare.goodbooks import prepare_goodbooks
 from streamlit_recommenders.data.prepare.movielens import MOVIELENS_URLS, prepare_movielens
@@ -13,9 +13,10 @@ from streamlit_recommenders.data.prepare.movielens import MOVIELENS_URLS, prepar
 
 def main() -> None:
     """Parse CLI arguments and dispatch to the goodbooks or MovieLens preparer."""
-    # Load TMDB_API_KEY / KAGGLE_* etc. from a local .env, if present. Real
-    # environment variables already set take precedence.
-    load_dotenv()
+    # Load TMDB_API_KEY / KAGGLE_* etc. from a .env in (or above) the working
+    # directory; the default lookup starts next to this file, i.e. inside
+    # site-packages once installed. Variables already set take precedence.
+    load_dotenv(find_dotenv(usecwd=True))
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(

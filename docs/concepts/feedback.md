@@ -1,60 +1,64 @@
 # Feedback & session
 
-This page is the precise answer to "what does the framework do with my feedback, and what does my
-model have to do?" — because the boundary matters for interpreting what you see.
+What happens to a click, Like, Dislike or Skip, and what your model receives because of it.
 
 ## The user profile
 
-A model always scores against a **user profile**: the union of the selected user's **history**
-(their rows in `interactions`) and the **positive** interactions from the current session. The
-"Try yourself" session user has no history, so it is driven purely by what you click.
+A model scores against a profile: the selected user's history (their rows in `interactions`)
+plus the items liked or clicked in the current session. The *Try it yourself* user has no history,
+so its profile is only what you pick.
 
 ## Feedback signals
 
-The three click/swipe actions map onto the contract as follows. The framework only **passes** them
-— what a model does with each is its own decision:
+| Action | Your model receives | `BaseRecommender` / `ArtifactRecommender` |
+|--------|---------------------|-------------------------------------------|
+| Click a card / Like | the id in `session_items` (plus a `selections` entry) | adds it to the profile |
+| Dislike (cards only) | a `selections` entry with `sentiment: "dislike"` | treats it as seen and passes it to `scores(disliked_items=...)` |
+| Skip (cards only) | nothing; the card is filtered out of the deck | — |
 
-| Action | Carried as | What the framework does | What the built-in models do | What a custom model can do |
-|--------|-----------|-------------------------|-----------------------------|----------------------------|
-| **Like / click** | `session_items` (+ a `selections` entry) | Adds to the positive profile | Fold into the profile vector | Same |
-| **Dislike** (cards) | `selections` entry with `sentiment: "dislike"` | Passes it through; records it in the *Disliked this session* strip | **Exclude the item only** (no down-weighting) | Read the sentiment and treat it as a negative signal |
-| **Skip** (cards) | Excluded ids (not in `selections`) | Marks as seen | Excluded so the card does not reappear | — |
+Results refresh on **Get Recommendations** (rows, grid) or every `swipes_per_refresh` swipes (cards).
 
-!!! note "Dislikes are an available signal, not an automatic one"
-    The `BaseRecommender` / `ArtifactRecommender` baselines **exclude** a disliked item but do not
-    use it to push down similar items. Because `selections` is passed through untouched, a model
-    that overrides `get_recommendations(..., selections=...)` can read the dislike sentiment and act
-    on it — see
-    [`examples/swipe_deck_cards.py::FeedbackAwareEASE`](https://github.com/vaclavstibor/streamlit-recommenders/blob/main/examples/swipe_deck_cards.py).
+### How a Dislike changes the ranking
 
-Refresh happens on **Get Recommendations** (rows/grid) or automatically after `swipes_per_refresh`
-swipes (cards). Reader API for `body()`: `sr.selected_items()`, `sr.disliked_items()`,
-`sr.displayed_items(label)`, `sr.selections()`, `sr.current_user()`, `sr.param_value(name)`.
+`ArtifactRecommender` subtracts `dislike_weight` (default `1.0`) times the disliked item's weight
+row from the scores. For item-item models (ItemKNN, EASE) that pushes down items similar to the
+rejected one; for sequential CF it pushes down items that usually follow it. With
+`dislike_weight=0` a dislike only hides the item. On ml-latest-small with EASE, after liking
+*Toy Story* and *A Bug's Life*, disliking *Toy Story 2* drops *The Lion King* and *Beauty and the
+Beast* from the top 8.
 
-## Seen-filtering — and how to turn it off
+Dislikes do not form a profile on their own: a session with dislikes but no likes still gets the
+popularity fallback, labeled as such (see below).
 
-By default, items already in the user's history or current session are filtered out of
-recommendations (`effective_seen`). To inspect a model's **raw ranking including seen items** —
-useful for checking its unfiltered static output — turn off the **Hide already-seen items** sidebar
-toggle. The default (on) keeps the usual "don't re-recommend what you've seen" behavior.
+To use dislikes in your own model, either declare `disliked_items` in a `BaseRecommender.scores()`
+override, or read `selections` in a plain function:
 
-The toggle applies to the built-in `BaseRecommender`/`ArtifactRecommender` ranking path; a plain
-function does its own filtering.
+```python
+def get_recommendations(user_id, k, session_items=None, selections=None, **params):
+    disliked = {s["item_id"] for s in selections or [] if s.get("sentiment") == "dislike"}
+    ...
+```
 
-## No silent fallbacks
+Expose the weight as a sidebar control with `params={"dislike_weight": sr.slider("Dislike weight", 0.0, 3.0, 1.0)}`.
 
-An inspection tool must never present something that is not the model's own output as if it were.
-Two cases are surfaced explicitly:
+In `body()` the same state is readable through `sr.selected_items()`, `sr.disliked_items()`,
+`sr.displayed_items(label)`, `sr.selections()`, `sr.current_user()` and `sr.param_value(name)`.
 
-- **Empty session profile (cold start).** Before you click anything, the "Try yourself" user has no
-  signal. Rather than fabricate a ranking, the app shows a clearly labeled **catalog seed sample**
-  (🌱 *"catalog sample to seed the profile, not model recommendations"*) for you to react to. The
-  model is not called until the profile has something in it.
-- **Popularity fallback.** If a loaded artifact genuinely has no signal for a profile (e.g. ids
-  outside its catalog, or a sequential anchor with no transitions), it falls back to global
-  popularity — and the app flags this with a ⚠️ **"Popularity fallback"** badge above the row, so
-  the result is never misattributed to the model. `ArtifactRecommender.fallback_reason()` reports
-  when this happens.
+## Seen items
 
-Because a demo user with real history and a mapped catalog never hits either case, both are edge
-states — but they are shown, not hidden.
+By default, items in the user's history or current session (including dislikes) are filtered out.
+Turn off **Hide already-seen items** in the sidebar to see the model's raw ranking. The toggle
+applies to `BaseRecommender` and `ArtifactRecommender`; a plain function does its own filtering
+and receives the flag as `hide_seen` if it declares it.
+
+## Nothing is silently attributed to the model
+
+Two situations would otherwise show items the model did not choose. Both are labeled in the UI:
+
+- **Empty session profile.** Before the *Try it yourself* user picks anything, the app shows a sample
+  of popular catalog items, marked as a seed sample. The model is not called until there is
+  something in the profile.
+- **Popularity fallback.** When an `ArtifactRecommender` has no signal for the profile (ids outside
+  its catalog, only dislikes, a sequential anchor without transitions), it returns global
+  popularity and the section shows a *Popularity fallback* warning.
+  `ArtifactRecommender.fallback_reason()` reports the same thing in code.

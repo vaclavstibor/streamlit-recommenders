@@ -80,7 +80,7 @@ def displayed_items(section: str | None = None):
     all sections when ``section`` is ``None``. This is the single source of
     truth for what the UI displays, so diagnostics in ``body()`` (overlap
     heatmaps, score tables) stay consistent with the rows on screen, including
-    the cold-start sample shown for the "Try yourself" session user.
+    the cold-start sample shown for the "Try it yourself" session user.
     """
     displayed = get_state().get("displayed_recs", {})
     if section is None:

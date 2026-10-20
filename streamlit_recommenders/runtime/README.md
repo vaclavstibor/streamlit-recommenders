@@ -1,29 +1,34 @@
 # Runtime internals
 
-Not part of the public API. Demo scripts use `sr.*` only.
+Not public API; demos use `sr.*`.
 
 ## Cache
 
-| What | Where |
-|------|-------|
-| CSV load | `@st.cache_data` in `cache.load_csv` |
-| `get_recommendations()` | `@st.cache_data` keyed by user, k, params, session_items, selections |
+| What | How |
+|------|-----|
+| CSV loads | `st.cache_data` in `cache.load_csv` |
+| `get_recommendations()` | `st.cache_data`, keyed by model identity, user, k, params, session items and selections |
 
-## Session state
+## Session state (`st.session_state["_sr_state"]`)
 
-| Key | Purpose |
+| Key | Content |
 |-----|---------|
-| `current_user` | Sidebar selection |
-| `selected_ids` | Items clicked this session |
-| `selections` | Per-section `{item_id, rank, source}` |
-| `displayed_recs` | Carousel ids per recommender section |
-| `run_context_hash` | Clears displayed recs on user/k/params change |
+| `current_user` | sidebar selection; changing it resets everything below |
+| `selected_ids` | liked/clicked items (the positive session profile) |
+| `disliked_ids` | swipe dislikes |
+| `selections` | per-section `{item_id, rank, source[, sentiment]}` entries |
+| `displayed_recs` | ids currently shown, per section |
+| `displayed_notice` | seed/fallback label per section |
+| `swipe_counts`, `swipe_skipped` | cards deck progress |
+| `run_context_hash` | user + k + params; a change clears displayed recs and deck progress |
+| `cold_start_seed` | per-session seed for the cold-start sample |
 
-## Rerun flow (`runner.py`)
+## One rerun (`runner.py`)
 
-1. Resolve sidebar params and user
-2. Load or reuse `displayed_recs` per section
-3. Render profile strips + item carousel
-4. **Get Recommendations** button recomputes and stores new ids, then `st.rerun()`
+1. Resolve the user and sidebar params; reset state if the run context changed.
+2. Render profile strips (history, selected, disliked).
+3. For each section, reuse `displayed_recs` or compute them (cold-start sample or cached model call).
+4. Render the layout. Buttons use `on_click` callbacks, so a click updates state before the next rerun.
 
-Card click → `record_selection()` → immediate rerun. The selected item stays in the carousel as a greyed card, appears in the profile strip, and can be clicked again to unselect.
+A card click toggles the item in `selected_ids`; the card shows a *Selected* badge and the item
+appears in the *Selected this session* strip, where clicking it again removes it.

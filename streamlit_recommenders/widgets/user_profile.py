@@ -52,13 +52,13 @@ def render_user_profile(
     """
     if interactions is None or "user_id" not in interactions.columns:
         if is_session_user(user_id):
-            st.sidebar.caption("Session user — select items below to shape recommendations.")
+            st.sidebar.caption("Session user: pick items below to build a profile.")
         return
 
     session_items = session_items or []
     with st.sidebar.expander("Profile summary", expanded=False):
         if is_session_user(user_id):
-            st.caption("Build your taste by selecting items in the recommendations below.")
+            st.caption("Pick items below to build a profile.")
             st.markdown(f"Session picks: **{len(session_items)}**")
             return
 

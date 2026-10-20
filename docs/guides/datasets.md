@@ -1,78 +1,73 @@
 # Datasets
 
-Two dataset families are supported out of the box, each one command away. Every prepared folder
-lands in the same standard layout (`items.csv`, `interactions.csv`, …) under `data/<dataset-name>/`,
-and a `dataset.json` completion manifest prevents accidental re-downloads
-(`sr.is_complete(root)`), so preparation is idempotent.
+Every preparation command writes the same layout (`items.csv`, `interactions.csv`, raw files) to
+`data/<dataset-name>/` and marks the folder complete in `dataset.json`, so running it again does
+nothing unless you pass `--force`.
 
-## Keys and paths — `.env` or inline
+## MovieLens
 
-Keys (`TMDB_API_KEY` / `TMDB_BEARER_TOKEN`, `KAGGLE_USERNAME` / `KAGGLE_KEY`) and the `SR_DATA_DIR`
-path can be provided two equivalent ways:
-
-- **`.env` file (recommended).** Copy
-  [`.env.example`](https://github.com/vaclavstibor/streamlit-recommenders/blob/main/.env.example) to
-  `.env` and fill it in. The preparation CLI loads `.env` automatically:
-  ```bash
-  python -m streamlit_recommenders.data.prepare --dataset ml-latest-small --with-posters
-  ```
-- **Inline environment variables.** Prefix the command:
-  ```bash
-  TMDB_API_KEY=your_key python -m streamlit_recommenders.data.prepare --dataset ml-latest-small --with-posters
-  ```
-
-Real environment variables take precedence over `.env`. Only the preparation CLI auto-loads `.env`;
-the example apps read `SR_DATA_DIR` from the shell, so export it (`set -a && source .env && set +a`)
-or pass it inline (`SR_DATA_DIR=data/ml-latest-small streamlit run ...`).
-
-## Movies — MovieLens
-
-Variants `ml-latest-small`, `ml-latest`, `ml-25m`, `ml-32m`, downloaded directly from GroupLens (no
-account needed):
+`ml-latest-small`, `ml-latest`, `ml-25m` and `ml-32m`, downloaded from GroupLens without an
+account:
 
 ```bash
 python -m streamlit_recommenders.data.prepare --dataset ml-latest-small
 ```
 
-MovieLens ships no artwork. To enrich items with TMDB posters and plot descriptions, get a free API
-key at [themoviedb.org](https://www.themoviedb.org/settings/api) and add `--with-posters`:
+MovieLens has no images. With a free [TMDB API key](https://www.themoviedb.org/settings/api),
+`--with-posters` adds posters and plot descriptions (`--poster-limit 1000` for a shorter first run):
 
 ```bash
-TMDB_API_KEY=your_key python -m streamlit_recommenders.data.prepare --dataset ml-latest-small --with-posters
+python -m streamlit_recommenders.data.prepare --dataset ml-latest-small --with-posters
 ```
 
-`TMDB_BEARER_TOKEN` works as an alternative; `--poster-limit 1000` caps a first run. Enrichment is
-robust (retry/backoff, 429 handling) and writes a `metadata_completeness.csv` report of items still
-missing a poster or description. Re-running `--with-posters` on a prepared dataset only performs the
-enrichment.
+Requests are retried on rate limits and network errors, and items still missing a poster or
+description are listed in `metadata_completeness.csv`. Adding `--with-posters` to an already
+prepared folder rebuilds it with posters, reusing the downloaded files.
 
-## Books — goodbooks-10k
+## goodbooks-10k
 
-Book covers ship as URLs inside the dataset, so no image enrichment is needed. The download comes
-from Kaggle via [`kagglehub`](https://github.com/Kaggle/kagglehub), which ships with the library:
+Covers are URLs inside the dataset, so there is no enrichment step. The download goes through
+[`kagglehub`](https://github.com/Kaggle/kagglehub), installed with the library:
 
 ```bash
-python -m streamlit_recommenders.data.prepare --dataset goodbooks   # or goodbooks-10k
+python -m streamlit_recommenders.data.prepare --dataset goodbooks
 SR_DATA_DIR=data/goodbooks-10k streamlit run examples/compare_models_rows.py
 ```
 
-The dataset is public, so `kagglehub` usually needs no credentials. If yours does, authenticate
-with `~/.kaggle/kaggle.json` or `KAGGLE_USERNAME` / `KAGGLE_KEY`. Alternatively, skip Kaggle by
-placing `books.csv` / `ratings.csv` into `data/goodbooks-10k/` yourself.
+The dataset is public and usually needs no Kaggle login; if yours asks for one, use
+`~/.kaggle/kaggle.json` or `KAGGLE_USERNAME`/`KAGGLE_KEY`. You can also put `books.csv` and
+`ratings.csv` into `data/goodbooks-10k/` yourself.
 
 ## From Python
 
 ```python
-sr.prepare_movielens("ml-32m", with_posters=True)   # TMDB_API_KEY for posters
+sr.prepare_movielens("ml-latest-small", with_posters=True)
 sr.prepare_goodbooks()
 ```
 
-## Bring your own domain
+## Keys and environment variables
 
-Any domain works as long as you produce the standard tables (see the
-**[Data contract](../concepts/data.md)**): put `items.csv` and `interactions.csv` in a folder and
-point the examples at it with `SR_DATA_DIR=data/your-dataset`. Missing posters fall back to a
-placeholder, so identifier-only or sparse-metadata datasets render cleanly too.
+The preparation CLI reads a `.env` file in the working directory (copy
+[`.env.example`](https://github.com/vaclavstibor/streamlit-recommenders/blob/main/.env.example)):
+`TMDB_API_KEY` or `TMDB_BEARER_TOKEN`, and optionally `KAGGLE_USERNAME`/`KAGGLE_KEY`. Variables
+already set in the shell win over `.env`.
 
-Keep protected data out of git under `data/<dataset-name>/`; commit only scripts/docs that describe
-how to recreate the local files.
+The example apps do not read `.env`; they take `SR_DATA_DIR` from the shell and default to
+`data/ml-latest-small`:
+
+```bash
+SR_DATA_DIR=data/goodbooks-10k streamlit run examples/compare_models_rows.py
+```
+
+!!! note "Windows"
+    `VAR=value command` is bash syntax. In PowerShell run `$env:SR_DATA_DIR="data/goodbooks-10k"`
+    first, in cmd `set SR_DATA_DIR=data/goodbooks-10k`. Downloads verify HTTPS against the system
+    certificate store plus the [certifi](https://pypi.org/project/certifi/) bundle, so the
+    `CERTIFICATE_VERIFY_FAILED` error that older releases hit on Windows is fixed without disabling
+    verification.
+
+## Your own data
+
+Write `items.csv` and `interactions.csv` following the [Data contract](../concepts/data.md) into
+`data/<name>/` and set `SR_DATA_DIR=data/<name>`. Items without images get a placeholder. Keep
+datasets and posters out of git; commit only the scripts that recreate them.

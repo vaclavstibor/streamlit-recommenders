@@ -1,9 +1,6 @@
 # Recommender contract
 
-You own the recommendations; the library owns everything interactive. The entire boundary is one
-function.
-
-## The contract
+The boundary between your model and the library is one function:
 
 ```python
 def get_recommendations(
@@ -16,31 +13,26 @@ def get_recommendations(
     ...
 ```
 
-| Rule | Detail |
-|------|--------|
-| Return | Ordered item ids, best first, length ≤ `k` |
-| Ids | Must exist in `items`; unknown ids are skipped |
-| Params | Sidebar values, minus reserved keys (see [Runtime params](#runtime-params)) |
+It returns up to `k` item ids, best first. Ids missing from `items` are skipped when rendering.
+`params` holds the sidebar values (minus the [reserved keys](#reserved-params)).
 
-Optional kwargs are injected **only when your signature accepts them**, so a minimal function stays
-minimal:
+Optional arguments are passed only if your signature declares them (or takes `**params`), so a
+minimal function stays minimal:
 
-| Kwarg | Content |
-|-------|---------|
-| `session_items` | Ordered ids from the session profile (likes/clicks) |
-| `selections` | Per-section `{item_id, rank, source}` metadata; swipe dislikes add `sentiment: "dislike"` |
-| `hide_seen` | Reserved flag (default `True`); handled for you by `BaseRecommender` |
+| Argument | Content |
+|----------|---------|
+| `session_items` | ids liked or clicked in this session, in order |
+| `selections` | per-section `{item_id, rank, source}` entries; swipe dislikes carry `sentiment: "dislike"` |
+| `hide_seen` | state of the *Hide already-seen items* toggle |
 
-How the profile becomes a ranking is entirely your model's business — see
-**[Feedback & session](feedback.md)**.
+What the model does with them is up to you; [Feedback & session](feedback.md) describes what the
+built-in classes do.
 
 ## Three ways to plug in
 
-All three return ordered item ids and drop straight into `sr.run(...)`.
-
 ### 1. A plain function
 
-Wrap any external scorer, running service, or REST API:
+Wrap any scorer, service or API:
 
 ```python
 def get_recommendations(user_id, k, session_items=None, **params):
@@ -49,46 +41,47 @@ def get_recommendations(user_id, k, session_items=None, **params):
 
 ### 2. Subclass `BaseRecommender`
 
-Implement a single `scores()` method; the base class handles seen-filtering and top-`k` ranking:
+Implement `scores()`, returning one score per entry of `self.item_ids`. The base class removes seen
+items and takes the top `k`:
 
 ```python
 class MyModel(sr.BaseRecommender):
     def __init__(self, interactions, item_ids):
-        self.interactions = interactions
+        self.interactions = interactions  # used to find seen items
         self.item_ids = item_ids
-    def scores(self, user_id, session_items=None, **params):
-        return my_score_vector(user_id, session_items)  # one score per item_id
+
+    def scores(self, user_id, session_items=None, disliked_items=None, **params):
+        return my_score_vector(user_id, session_items, disliked_items)
 ```
+
+`disliked_items` is optional: declare it to receive the session's swipe dislikes.
 
 ### 3. Load exported weights with `ArtifactRecommender`
 
-For a train/export/inspect split, load pure `.npz` arrays — no training code enters the demo:
+Train elsewhere, export `.npz` arrays, and the demo only loads them:
 
 ```python
 models = sr.load_artifacts({"EASE": "artifacts/ease.npz"}, interactions=train)
 sr.run(get_recommendations=models, items=items, interactions=train)
 ```
 
-See the **[Training & artifacts guide](../guides/artifacts.md)** for the artifact format.
+The file format is in [Training & artifacts](../guides/artifacts.md).
 
-## The library ships no models
+## No models in the package
 
-To stay un-opinionated about modeling, the package includes only the `BaseRecommender` contract and
-the `ArtifactRecommender` loader. Three reference baselines — `ItemKNNRecommender`,
-`EASERecommender`, `SequentialCFRecommender` — live in
+The package contains the contract, `BaseRecommender` and the `ArtifactRecommender` loader, nothing
+else. ItemKNN, EASE and Sequential CF are in
 [`examples/reference_recommenders.py`](https://github.com/vaclavstibor/streamlit-recommenders/blob/main/examples/reference_recommenders.py)
-as copy-and-adapt starting points, not library imports. Heavy training frameworks (RecBole, Cornac,
-RecPack, LensKit, Elliot) stay external, reached through this contract rather than added as
-dependencies.
+to copy from. Models trained in RecBole, Cornac, RecPack, LensKit or Elliot connect through the
+same function instead of becoming dependencies.
 
-## Runtime params
+## Reserved params
 
-Reserved keys the sidebar consumes instead of forwarding as model params:
+These `params` keys configure the app and are not forwarded to the model:
 
 | Key | Purpose |
 |-----|---------|
-| `num_recs` / `k` | Passed as `k` |
-| `layout` | `rows` \| `grid` \| `cards` |
-| `n_cols` / `n_rows` | Grid dimensions |
-| `swipes_per_refresh` | Swipes before the `cards` deck refreshes its queue |
-| `hide_seen` | Toggle for already-seen filtering (see [Feedback & session](feedback.md)) |
+| `num_recs` / `k` | number of recommendations, passed as `k` |
+| `layout` | `rows`, `grid` or `cards` |
+| `n_cols` / `n_rows` | grid size |
+| `swipes_per_refresh` | swipes before the `cards` deck refreshes |

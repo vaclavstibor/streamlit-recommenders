@@ -15,6 +15,7 @@ from typing import Any
 
 import pandas as pd
 
+from streamlit_recommenders.data.prepare._http import urlopen
 from streamlit_recommenders.data.prepare._progress import ProgressBar
 
 TMDB_API_URL = "https://api.themoviedb.org/3/movie/{tmdb_id}"
@@ -62,6 +63,10 @@ class TmdbClient:
 
         Returns:
             The parsed JSON metadata, or an empty dict on failure.
+
+        Raises:
+            SystemExit: If TMDB rejects the credentials (HTTP 401), since
+                every further request would fail the same way.
         """
         params = {"language": "en-US"}
         if self.api_key:
@@ -71,14 +76,20 @@ class TmdbClient:
         for attempt in range(1, attempts + 1):
             try:
                 request = urllib.request.Request(url, headers=self._headers())
-                with urllib.request.urlopen(request, timeout=20) as response:
+                with urlopen(request, timeout=20) as response:
                     return json.loads(response.read().decode("utf-8"))
             except urllib.error.HTTPError as exc:
+                if exc.code == 401:
+                    raise SystemExit(
+                        "TMDB rejected the credentials (HTTP 401); check TMDB_API_KEY/TMDB_BEARER_TOKEN."
+                    ) from exc
                 if exc.code == 429:
                     time.sleep(min(2 * attempt, 10))
                     continue
                 return {}
-            except urllib.error.URLError:
+            except OSError:
+                # URLError covers connection failures; read timeouts and resets
+                # mid-response surface as other OSErrors.
                 if attempt == attempts:
                     return {}
                 time.sleep(1.5 * attempt)
@@ -217,12 +228,15 @@ def _download_poster(poster_path: str, output_path: Path, *, force: bool) -> str
     if output_path.exists() and not force:
         return str(output_path)
     url = TMDB_IMAGE_URL.format(poster_path=poster_path)
+    part_path = output_path.with_name(output_path.name + ".part")
     try:
-        with urllib.request.urlopen(url, timeout=20) as response, output_path.open("wb") as output:
+        with urlopen(url, timeout=20) as response, part_path.open("wb") as output:
             shutil.copyfileobj(response, output)
-    except (urllib.error.HTTPError, urllib.error.URLError) as exc:
+    except OSError as exc:
+        part_path.unlink(missing_ok=True)
         print(f"\nposter download failed for {output_path.name}: {exc}", file=sys.stderr)
         return ""
+    part_path.replace(output_path)
     return str(output_path)
 
 

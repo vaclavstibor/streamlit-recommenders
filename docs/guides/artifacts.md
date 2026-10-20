@@ -1,64 +1,67 @@
 # Training & artifacts
 
-The runtime does not train heavy models. The recommended pattern is **train externally → export
-pure arrays → inspect** — the demo loads only the arrays, never the training code. This keeps the
-boundary explicit and the runtime lightweight.
+The demo does not train models. Train outside, export plain NumPy arrays, and the app only loads
+them, so no training code or framework ends up in the demo.
 
-## Export baseline artifacts
-
-One optional script trains three baseline families and writes NumPy artifacts:
+## Export the baselines
 
 ```bash
 python examples/train_baseline_artifacts.py --data data/ml-latest-small
-SR_DATA_DIR=data/ml-latest-small streamlit run examples/compare_models_rows.py
 ```
 
-It reads standard `items.csv`/`interactions.csv` (or raw MovieLens `movies.csv`/`ratings.csv`),
-creates train/test splits if needed, and writes `artifacts/itemknn.npz`, `artifacts/ease.npz`, and
-`artifacts/sequential_cf.npz`.
+Reads `items.csv`/`interactions.csv` (or raw MovieLens `movies.csv`/`ratings.csv`), writes
+`train_interactions.csv`/`test_interactions.csv` if they are missing, and saves
+`artifacts/itemknn.npz`, `artifacts/ease.npz` and `artifacts/sequential_cf.npz`.
 
 ## Artifact format
 
-Each `.npz` is a small set of arrays. **It stores item–item weights, not user–item scores and not
-embeddings** — scoring happens at runtime as `profile_vector @ weights`, with a popularity fallback
-when the profile has no signal.
+An artifact stores item-item weights, not user-item scores or embeddings.
 
-| Key | Shape / dtype | Meaning |
-|-----|---------------|---------|
-| `model_type` | string tag | `"itemknn"` / `"ease"` / `"sequential_cf"` — selects the scoring branch |
-| `item_ids` | `(n_items,)` | Catalog order; indexes the rows/cols of `weights` and `popularity` |
-| `weights` | `(n_items, n_items)` float32 | Item–item matrix: kNN cosine similarity, EASE closed-form weights, or row-normalized transitions |
-| `popularity` | `(n_items,)` float32 | Global popularity, used as the fallback vector |
-| `l2` *(EASE only)* | `(1,)` float32 | Regularization strength; recorded for provenance, not read by the loader |
+| Key | Shape | Meaning |
+|-----|-------|---------|
+| `model_type` | `(1,)` string | `"itemknn"`, `"ease"` or `"sequential_cf"`; selects the scoring rule |
+| `item_ids` | `(n_items,)` | catalog order of the rows and columns below |
+| `weights` | `(n_items, n_items)` float32 | cosine similarities, EASE weights, or row-normalized transitions |
+| `popularity` | `(n_items,)` float32 | fallback scores when the profile has no signal |
+| `l2` (EASE only) | `(1,)` float32 | regularization, kept for provenance; not read by the loader |
 
-Load exported artifacts with `sr.load_artifacts({label: path}, interactions=train)` (see the
-**[Recommender contract](../concepts/recommender.md)**). At inference `ArtifactRecommender` builds a
-binary profile vector over `history + session_items` (capped by the optional **History window**
-control) and multiplies by `weights`; sequential models score from the last item's weight row.
-`fallback_reason()` reports when a call returns popularity instead of the model's own output — the
-UI surfaces this as a badge (see **[Feedback & session](../concepts/feedback.md)**).
+```python
+models = sr.load_artifacts({"EASE": "artifacts/ease.npz"}, interactions=train)
+```
+
+How `ArtifactRecommender` scores:
+
+- `itemknn`, `ease`: a binary vector over history + session items (optionally limited by a
+  `history_window` param) times `weights`.
+- `sequential_cf`: the `weights` row of the most recent item.
+- Each session dislike subtracts `dislike_weight` × its `weights` row.
+- No usable signal: `popularity`, flagged in the UI and by `fallback_reason()`.
+
+Any model that fits these four arrays can be exported the same way and loaded without code changes.
 
 ## Bring an externally trained model
 
-You do not need artifacts at all. Train in RecBole, Cornac, RecPack, LensKit, Elliot, or a paper
-repo, then expose the trained object through the contract:
+Models from RecBole, Cornac, RecPack, LensKit, Elliot or a paper repository need no artifact; wrap
+the trained object in the contract:
 
 ```python
 class TrainedModelAdapter:
+    def __init__(self, model):
+        self.model = model
+
     def get_recommendations(self, user_id, k, session_items=None, **params):
         return self.model.rank(user_id, session_items=session_items)[:k]
 
-sr.run(get_recommendations={"Ours": TrainedModelAdapter(), "EASE": ease}, items=items, interactions=train)
+sr.run(get_recommendations={"Ours": TrainedModelAdapter(model), "EASE": ease}, items=items, interactions=train)
 ```
 
 ## Reference baselines
 
-Defined in
-[`examples/reference_recommenders.py`](https://github.com/vaclavstibor/streamlit-recommenders/blob/main/examples/reference_recommenders.py)
-(subclassing `BaseRecommender`), not shipped by the library — copy one as a starting point:
+The same three families as in-app `BaseRecommender` subclasses, in
+[`examples/reference_recommenders.py`](https://github.com/vaclavstibor/streamlit-recommenders/blob/main/examples/reference_recommenders.py):
 
-| Family | Reference class | Canonical citation |
-|--------|-----------------|--------------------|
+| Family | Class | Reference |
+|--------|-------|-----------|
 | Item-item CF | `ItemKNNRecommender` | Deshpande & Karypis, ACM TOIS 2004 |
-| Shallow linear CF | `EASERecommender` | Steck, WWW 2019 |
+| Linear autoencoder | `EASERecommender` | Steck, WWW 2019 |
 | Sequential CF | `SequentialCFRecommender` | first-order item transitions |

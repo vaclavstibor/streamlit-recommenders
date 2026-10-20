@@ -21,7 +21,7 @@ def load_config(path: str | Path | None) -> dict[str, Any]:
     """
     if path is None:
         return {}
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
     if not isinstance(data, dict):
         raise ValueError("Config YAML must be a mapping at the top level")

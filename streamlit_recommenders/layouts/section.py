@@ -108,9 +108,9 @@ def render_recommender_section(
     with st.container(border=True):
         if notice:
             if notice.get("level") == "fallback":
-                st.warning(notice["text"], icon="⚠️")
+                st.warning(notice["text"])
             else:
-                st.info(notice["text"], icon="🌱")
+                st.info(notice["text"])
         if layout == "cards":
             render_swipe_deck(
                 entries,
@@ -222,7 +222,7 @@ def _handle_swipe(
     if count >= swipes_per_refresh and on_get_recommendations is not None:
         on_get_recommendations()
         reset_swipe_count(section)
-        st.toast("New recommendations displayed")
+        st.toast("Recommendations refreshed")
 
 
 def _handle_skip(
@@ -237,7 +237,7 @@ def _handle_skip(
     if count >= swipes_per_refresh and on_get_recommendations is not None:
         on_get_recommendations()
         reset_swipe_count(section)
-        st.toast("New recommendations displayed")
+        st.toast("Recommendations refreshed")
 
 
 def _swipe_key(section: str) -> str:

@@ -29,3 +29,13 @@ def test_get_recommendations_button_key():
         get_recommendations_button_key("Our method")
         == "streamlit_recommenders.get_recommendations.our_method"
     )
+
+
+def test_st_key_slug_matches_streamlit_class_rule():
+    # Streamlit's frontend turns a widget key into the CSS class
+    # "st-key-" + key.trim().replace(/[^a-zA-Z0-9_-]/g, "-"); card styles only
+    # apply if the injected selectors use the same transformation.
+    from streamlit_recommenders.layouts.item_card import _st_key_slug
+
+    key = item_action_key("Doporučení", "tt 01", 2)
+    assert _st_key_slug(key) == "streamlit_recommenders-item-doporu-en--tt-01-r2"

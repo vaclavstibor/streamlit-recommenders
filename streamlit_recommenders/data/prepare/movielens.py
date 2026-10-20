@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import shutil
-import urllib.request
 import zipfile
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
+from streamlit_recommenders.data.prepare._http import urlopen
 from streamlit_recommenders.data.prepare._progress import ProgressBar
 from streamlit_recommenders.data.prepare.manifest import is_complete, read_manifest, write_manifest
 
@@ -180,18 +180,26 @@ def _download_file(url: str, output_path: Path, *, force: bool) -> None:
         return
     print(f"Downloading {url}")
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with urllib.request.urlopen(url) as response, output_path.open("wb") as output:
-        total = int(response.headers.get("Content-Length", "0"))
-        bar = ProgressBar(total, label=output_path.name)
-        downloaded = 0
-        while True:
-            chunk = response.read(1024 * 1024)
-            if not chunk:
-                break
-            output.write(chunk)
-            downloaded += len(chunk)
-            bar.update(downloaded)
-        bar.finish()
+    # Stream into a sibling .part file and rename only once complete, so an
+    # interrupted download is never mistaken for an existing one on rerun.
+    part_path = output_path.with_name(output_path.name + ".part")
+    try:
+        with urlopen(url) as response, part_path.open("wb") as output:
+            total = int(response.headers.get("Content-Length", "0"))
+            bar = ProgressBar(total, label=output_path.name)
+            downloaded = 0
+            while True:
+                chunk = response.read(1024 * 1024)
+                if not chunk:
+                    break
+                output.write(chunk)
+                downloaded += len(chunk)
+                bar.update(downloaded)
+            bar.finish()
+    except BaseException:
+        part_path.unlink(missing_ok=True)
+        raise
+    part_path.replace(output_path)
 
 
 def _extract_movielens(zip_path: Path, raw_dir: Path) -> None:

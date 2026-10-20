@@ -20,5 +20,5 @@ def markdown_file(path: str | Path) -> None:
     Args:
         path: Path to the Markdown file.
     """
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         st.markdown(f.read())

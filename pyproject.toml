@@ -1,6 +1,6 @@
 [project]
 name = "streamlit-recommenders"
-version = "0.1.1"
+version = "0.1.2"
 description = "Lightweight Streamlit library for interactive recommender system demos"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -23,7 +23,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "streamlit>=1.28",
+    "streamlit>=1.49",
     "pandas>=2.0",
     "plotly>=5.0",
     "pyyaml>=6.0",
@@ -31,6 +31,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "scipy",
     "kagglehub",
+    "certifi",
 ]
 
 [project.optional-dependencies]

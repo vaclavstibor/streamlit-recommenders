@@ -1,22 +1,13 @@
 # Getting started
 
-This page takes you from an empty environment to a running, inspectable demo.
-
 ## Install
 
 ```bash
 pip install streamlit-recommenders
 ```
 
-Requires **Python ≥3.10**. A single install pulls in everything the library and the bundled
-examples need (including `scipy` for baseline training and `kagglehub` for the goodbooks
-download). Contributors can add the tooling extra:
-
-```bash
-pip install "streamlit-recommenders[dev]"   # pytest, build, twine
-```
-
-From source:
+Python 3.10 or newer. The install includes what the examples need (`scipy` for training the
+baselines, `kagglehub` for goodbooks). From source, with test tooling:
 
 ```bash
 git clone https://github.com/vaclavstibor/streamlit-recommenders.git
@@ -26,21 +17,16 @@ pip install -e ".[dev]"
 
 ## Prepare a dataset
 
-Two dataset families work out of the box, each one command away. Every prepared folder ends up in
-the same standard layout (`items.csv`, `interactions.csv`, …) under `data/<dataset-name>/`, and a
-manifest makes preparation idempotent.
-
 ```bash
 python -m streamlit_recommenders.data.prepare --dataset ml-latest-small
 ```
 
-For posters and plot descriptions on MovieLens, add `--with-posters` (needs a free
-[TMDB](https://www.themoviedb.org/settings/api) key). Full options — variants, goodbooks, `.env`
-keys, bringing your own domain — are in the **[Datasets guide](guides/datasets.md)**.
+This creates `data/ml-latest-small/` with `items.csv` and `interactions.csv`. Posters, other
+datasets, API keys and Windows notes are in [Datasets](guides/datasets.md).
 
 ## Your first demo
 
-Point the library at the prepared folder and pass any callable that returns ranked item ids:
+Save as `app.py`:
 
 ```python
 import streamlit_recommenders as sr
@@ -59,13 +45,14 @@ sr.run(get_recommendations=get_recommendations, items=items, interactions=train)
 streamlit run app.py
 ```
 
-Swap the function body for your model — see the **[Recommender contract](concepts/recommender.md)**
-for the three ways to plug one in.
+Pick a user in the sidebar (or *Try it yourself* for an empty profile), click posters to add them
+to the session, and press **Get Recommendations**. Replace the function body with your model; the
+[Recommender contract](concepts/recommender.md) lists the three ways to plug one in.
 
-## Compare models side by side
+## Compare models
 
-Pass a dict of named recommenders; every model receives the same user and session context and
-refreshes together. Parameters can be global or scoped to a model label:
+Pass a dict of named recommenders. All of them get the same user and session and refresh together.
+Params can be global or scoped to one model:
 
 ```python
 sr.run(
@@ -79,21 +66,7 @@ sr.run(
 )
 ```
 
-## Run the bundled examples
+`alpha` reaches `ours.get_recommendations(..., alpha=...)` and changes when the slider moves.
 
-The [`examples/`](https://github.com/vaclavstibor/streamlit-recommenders/tree/main/examples)
-folder (shipped in the repo, not the wheel) has ready-to-run demos. For a step-by-step, beginner
-walkthrough of each one — organized by the three recommender interfaces — see the
-**[Examples by interface guide](guides/examples.md)**.
-
-```bash
-SR_DATA_DIR=data/ml-latest-small streamlit run examples/reference_recommenders.py
-```
-
-| File | Shows |
-|------|-------|
-| `reference_recommenders.py` | Subclass `BaseRecommender` (ItemKNN / EASE / Sequential CF), fit in memory, compare |
-| `compare_models_rows.py` | Compare exported artifacts in the rows layout |
-| `swipe_deck_cards.py` | Single-model swipe deck; a feedback-aware model that reads dislikes |
-| `compare_models_grid.py` | Grid layout with a sidebar model selector |
-| `train_baseline_artifacts.py` | Train/export `.npz` baseline artifacts |
+Next: the [Examples](guides/examples.md) page runs the bundled demos (in-app baselines, exported
+artifacts, the swipe deck).

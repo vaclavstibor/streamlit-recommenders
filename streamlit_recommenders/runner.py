@@ -55,7 +55,7 @@ _COLD_START_POOL_FACTOR = 5
 def _popularity_order(items: pd.DataFrame, interactions: pd.DataFrame | None) -> list:
     """Return item ids ordered by interaction count, catalog order as fallback.
 
-    Used to seed the empty-profile "Try yourself" session with a catalog sample
+    Used to seed the empty-profile "Try it yourself" session with a catalog sample
     to react to, computed directly (not via a model) so the seed is never
     mistaken for a recommender's output.
 
@@ -103,8 +103,8 @@ def _fallback_notice(
     return {
         "level": "fallback",
         "text": (
-            "Popularity fallback — the model has no signal for this profile, "
-            "so these items are not its own output."
+            "Popularity fallback: the model has no signal for this profile, "
+            "so these are the most popular items, not its own ranking."
         ),
     }
 
@@ -246,7 +246,7 @@ def run(
         item_columns: Mapping of logical item fields to catalog column names.
         intro: Optional callback rendered in a bordered container above the app.
         body: Optional callback rendered in a bordered container below the app.
-        session_user: Whether to offer the interactive "Try yourself" session
+        session_user: Whether to offer the interactive "Try it yourself" session
             user in the user picker.
         swipes_per_refresh: Number of swipes before new cards are requested in
             the "cards" layout.
@@ -321,7 +321,11 @@ def run(
         selected_ids,
         "Selected this session",
         columns=item_columns,
-        empty_hint="Click item cards below, then refresh recommendations.",
+        empty_hint=(
+            "Like cards below to add them to your profile."
+            if row_layout == "cards"
+            else "Click posters below to add them to your profile."
+        ),
         selectable=True,
         all_sections=all_sections,
     )
@@ -390,9 +394,8 @@ def run(
     )
     if session_cold_start:
         st.info(
-            "Pick a few items you like to start — this is a catalog sample to seed "
-            "the profile, not model recommendations.",
-            icon="🌱",
+            "These are popular catalog items, not recommendations. Pick a few you like, "
+            "then press Get Recommendations."
         )
 
     for label, get_recommendations_fn in pairs:

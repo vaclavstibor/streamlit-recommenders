@@ -2,7 +2,7 @@
 
 # streamlit-recommenders: Interactive Inspection for Recommender Systems
 
-**Turn a trained recommender into an interactive, inspectable web demo in a few lines of Python.**
+**An interactive, inspectable web demo for your recommender, in a few lines of Python.**
 
 [![PyPI](https://img.shields.io/pypi/v/streamlit-recommenders.svg)](https://pypi.org/project/streamlit-recommenders/)
 [![Python](https://img.shields.io/pypi/pyversions/streamlit-recommenders.svg)](https://pypi.org/project/streamlit-recommenders/)
@@ -13,27 +13,20 @@
 
 <br clear="left"/>
 
-## Why streamlit-recommenders?
+Pick a user, see their history and what each model recommends, click or swipe to give feedback,
+and watch the recommendations change. `streamlit-recommenders` builds that
+[Streamlit](https://streamlit.io) app around your model, so a recommender paper can ship with a
+demo instead of only a metrics table.
 
-Reproducibility in recommender-systems research usually stops at aggregate offline metrics.
-Whether a model actually behaves sensibly — for individual users, across parameter settings,
-against baselines — stays invisible unless someone builds a demo, and building demos is
-frontend work most researchers would rather skip.
+You supply pandas tables and a function (or object) that returns ranked item ids. The library
+handles the UI, session profile, caching, side-by-side comparison, and helpers for metrics and
+plots. It contains no models of its own.
 
-`streamlit-recommenders` removes that barrier. It is a thin presentation layer between your
-recommendation model and an interactive [Streamlit](https://streamlit.io) app: you bring a
-trained model (or just a function returning ranked item ids), and the library owns the UI,
-caching, session state, side-by-side comparison, and light evaluation. It ships **no models** —
-what recommends is entirely yours.
-
-- **Inspect per-user behavior** — pick any user, see history and live recommendations, click to simulate session feedback.
-- **Probe parameter sensitivity** — expose model parameters as sidebar widgets and watch recommendations react.
-- **Compare models side by side** — pass a dict of named models; all receive the same user and session context.
-- **Attach light evaluation** — ranking metrics (HR, Recall, NDCG, MRR, coverage), overlap heatmaps, score distributions, markdown/LaTeX below the demo.
-- **Inspect honestly** — a seen/unseen toggle, an explicit cold-start seed browser, and a visible popularity-fallback badge mean nothing on screen is silently misattributed to your model.
-
-The goal: make interactive model inspection a standard, low-effort artifact to publish
-alongside a paper.
+- **Per-user behavior:** any user's history next to live recommendations; session clicks, likes and dislikes feed back into the profile.
+- **Parameters:** model parameters become sidebar widgets.
+- **Comparison:** pass a dict of models; all of them get the same user and session.
+- **Evaluation helpers:** hit rate, recall, NDCG, MRR, coverage, overlap heatmaps, score distributions.
+- **No hidden substitutes:** cold-start samples and popularity fallbacks are labeled, so nothing on screen is mistaken for the model's output.
 
 ## Install
 
@@ -41,70 +34,52 @@ alongside a paper.
 pip install streamlit-recommenders
 ```
 
-Requires Python ≥3.10. See the [Getting started guide](https://vaclavstibor.github.io/streamlit-recommenders/getting-started/)
-for source installs and the `[dev]` extra.
+Python 3.10+. Docs: [vaclavstibor.github.io/streamlit-recommenders](https://vaclavstibor.github.io/streamlit-recommenders/),
+starting with [Getting started](https://vaclavstibor.github.io/streamlit-recommenders/getting-started/).
 
-## Documentation
-
-Full documentation lives at
-[vaclavstibor.github.io/streamlit-recommenders](https://vaclavstibor.github.io/streamlit-recommenders/).
-New here? Start with the [Getting started guide](https://vaclavstibor.github.io/streamlit-recommenders/getting-started/).
-
-## Minimal Example
+## Minimal example
 
 ```python
 import streamlit_recommenders as sr
 
-ITEMS = sr.load_items("data/items.csv")
-INTERACTIONS = sr.load_interactions("data/interactions.csv")
-POPULARITY = INTERACTIONS["item_id"].value_counts().index.tolist()
+items = sr.load_items("data/items.csv")
+interactions = sr.load_interactions("data/interactions.csv")
+POPULARITY = interactions["item_id"].value_counts().index.tolist()
 
 def get_recommendations(user_id, k, session_items=None, **params):
     exclude = set(session_items or [])
     return [item_id for item_id in POPULARITY if item_id not in exclude][:k]
 
-sr.run(
-    get_recommendations=get_recommendations,
-    items=ITEMS,
-    interactions=INTERACTIONS,
-    params={"alpha": sr.slider("alpha", 0.0, 1.0, 0.5)},
-)
+sr.run(get_recommendations=get_recommendations, items=items, interactions=interactions)
 ```
 
 ```bash
 streamlit run app.py
 ```
 
-Replace the function body with your model and you have an inspectable demo. For **compare
-mode**, pass a dict of models (`get_recommendations={"Ours": ours, "EASE": ease}`); params can
-be global or scoped to a model label. Your tables follow a small pandas schema — see the
-[Data contract](https://vaclavstibor.github.io/streamlit-recommenders/concepts/data/).
+Swap the function body for your model. For comparison, pass `get_recommendations={"Ours": ours, "EASE": ease}`.
+Tables follow a small [data contract](https://vaclavstibor.github.io/streamlit-recommenders/concepts/data/).
 
-## Three Ways to Plug In a Recommender
+## Plugging in a model
 
-The library owns the interactive layer; you provide recommendations in whichever form fits:
+1. **A plain function** `get_recommendations(user_id, k, session_items=None, **params)` around any scorer, service or API.
+2. **A `sr.BaseRecommender` subclass** that implements `scores()`; seen-filtering and top-`k` are done for you.
+3. **`sr.ArtifactRecommender`**, which loads exported `.npz` weights, so training stays outside the demo.
 
-1. **A plain function** — `def get_recommendations(user_id, k, session_items=None, **params): ...` around any scorer, service, or API.
-2. **Subclass `sr.BaseRecommender`** — implement `scores()`; seen-filtering and top-`k` are handled for you.
-3. **`sr.ArtifactRecommender`** — load exported `.npz` weights for a train/export/inspect split.
-
-All three return ordered item ids and drop straight into `sr.run(...)`. The package ships no
-recommenders of its own; ItemKNN, EASE, and Sequential CF are reference implementations in
-[`examples/reference_recommenders.py`](examples/reference_recommenders.py) to copy and adapt.
-Heavy training frameworks (RecBole, Cornac, LensKit, …) stay external, reached through the
-contract. → [Recommender contract](https://vaclavstibor.github.io/streamlit-recommenders/concepts/recommender/).
+ItemKNN, EASE and Sequential CF are in [`examples/reference_recommenders.py`](examples/reference_recommenders.py)
+to copy from. See the [recommender contract](https://vaclavstibor.github.io/streamlit-recommenders/concepts/recommender/).
 
 ## Examples
 
-Examples live in [`examples/`](examples/) (not in the wheel):
+In [`examples/`](examples/) (repository only, not in the wheel):
 
-| File | Pattern |
-|------|---------|
-| `reference_recommenders.py` | Subclass `BaseRecommender` (ItemKNN / EASE / Sequential CF), fit in memory, compare |
-| `compare_models_rows.py` | Compare exported artifacts in the rows layout |
-| `swipe_deck_cards.py` | Single-model swipe deck; a feedback-aware model that reads dislikes |
-| `compare_models_grid.py` | Grid layout with a sidebar model selector |
-| `train_baseline_artifacts.py` | Train/export `.npz` baseline artifacts |
+| File | Shows |
+|------|-------|
+| `reference_recommenders.py` | ItemKNN / EASE / Sequential CF as `BaseRecommender` subclasses, fit in the app |
+| `train_baseline_artifacts.py` | training the same baselines and exporting `.npz` artifacts |
+| `compare_models_rows.py` | three artifacts side by side |
+| `compare_models_grid.py` | one artifact at a time in the grid layout |
+| `swipe_deck_cards.py` | EASE as a swipe deck; dislikes push down similar movies |
 
 ## Citation
 
@@ -114,10 +89,10 @@ Examples live in [`examples/`](examples/) (not in the wheel):
   title   = {StreamlitRecommenders: Towards Recommendation Inspectability as a New Reproducibility Standard},
   year    = {2026},
   url     = {https://github.com/vaclavstibor/streamlit-recommenders},
-  version = {0.1.1}
+  version = {0.1.2}
 }
 ```
 
 ## License
 
-MIT License — see [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE).

@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import html
 import mimetypes
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -67,8 +68,13 @@ def _css_string(text: str) -> str:
 
 
 def _st_key_slug(key: str) -> str:
-    """Convert a state key into the CSS-class form Streamlit emits (dots to dashes)."""
-    return key.replace(".", "-")
+    """Convert a state key into the CSS-class form Streamlit emits.
+
+    Mirrors Streamlit's frontend ``st-key-`` class rule, which replaces every
+    character outside ``[a-zA-Z0-9_-]`` with ``-`` (so dots, spaces, and
+    non-ASCII letters such as ``č`` all become dashes).
+    """
+    return re.sub(r"[^a-zA-Z0-9_-]", "-", key.strip())
 
 
 def profile_poster_key(section: str, item_id: str | int, index: int) -> str:
@@ -420,7 +426,7 @@ def inject_swipe_styles(
     skip_key: str,
     like_key: str,
 ) -> None:
-    """Centered deck layout plus Dislike (red) / Skip (blue) / Like (green) button colors."""
+    """Centered deck layout plus Dislike (red) / Skip (neutral gray) / Like (green) button colors."""
     deck = _st_key_slug(deck_key)
     dislike = _st_key_slug(dislike_key)
     skip = _st_key_slug(skip_key)
@@ -467,7 +473,7 @@ div[class*="st-key-{deck}"] .sr-swipe-description {{
     line-height: 1.45;
 }}
 {_swipe_button_rule(dislike, "#dc2626", "#b91c1c")}
-{_swipe_button_rule(skip, "#2563eb", "#1d4ed8")}
+{_swipe_button_rule(skip, "#64748b", "#475569")}
 {_swipe_button_rule(like, "#16a34a", "#15803d")}
 </style>
         """,

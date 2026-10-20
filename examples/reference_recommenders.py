@@ -76,7 +76,7 @@ def user_vector(
     """Build a binary profile vector over the catalog for one user.
 
     Combines the user's historical interactions with the current session's items
-    so a fresh "Try yourself" session (no history) is driven purely by clicks.
+    so a fresh "Try it yourself" session (no history) is driven purely by clicks.
 
     Args:
         interactions: Interactions table with ``user_id`` and ``item_id`` columns.

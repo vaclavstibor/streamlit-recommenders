@@ -41,7 +41,7 @@ nav:
     - Inspection views: concepts/inspection.md
     - Architecture: concepts/architecture.md
   - Guides:
-    - Examples by interface: guides/examples.md
+    - Examples: guides/examples.md
     - Datasets: guides/datasets.md
     - Training & artifacts: guides/artifacts.md
   - API reference: api.md

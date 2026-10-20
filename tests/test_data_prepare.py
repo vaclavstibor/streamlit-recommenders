@@ -127,3 +127,119 @@ def test_completeness_report_counts_gaps(tmp_path):
     assert (tmp_path / "metadata_completeness.csv").exists()
     assert int(report["missing_poster"].sum()) == 1
     assert int(report["missing_description"].sum()) == 1
+
+
+class _FakeResponse:
+    def __init__(self, chunks, fail_after=None):
+        self.headers = {"Content-Length": str(sum(len(c) for c in chunks))}
+        self._chunks = list(chunks)
+        self._fail_after = fail_after
+        self._reads = 0
+
+    def read(self, _size=-1):
+        if self._fail_after is not None and self._reads >= self._fail_after:
+            raise TimeoutError("read timed out")
+        self._reads += 1
+        return self._chunks.pop(0) if self._chunks else b""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def test_download_file_uses_certifi_context(tmp_path, monkeypatch):
+    import ssl
+    import urllib.request
+
+    from streamlit_recommenders.data.prepare import movielens
+
+    captured = {}
+
+    def fake_urlopen(url, *, timeout, context):
+        captured["context"] = context
+        return _FakeResponse([b"abc"])
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    target = tmp_path / "ds.zip"
+    movielens._download_file("https://example.com/ds.zip", target, force=False)
+
+    assert target.read_bytes() == b"abc"
+    assert isinstance(captured["context"], ssl.SSLContext)
+    assert captured["context"].verify_mode == ssl.CERT_REQUIRED
+
+
+def test_interrupted_download_leaves_no_reusable_file(tmp_path, monkeypatch):
+    import urllib.request
+
+    import pytest
+
+    from streamlit_recommenders.data.prepare import movielens
+
+    monkeypatch.setattr(
+        urllib.request,
+        "urlopen",
+        lambda url, **kw: _FakeResponse([b"a", b"b"], fail_after=1),
+    )
+    target = tmp_path / "ds.zip"
+    with pytest.raises(TimeoutError):
+        movielens._download_file("https://example.com/ds.zip", target, force=False)
+
+    # A rerun must re-download instead of trusting a truncated archive.
+    assert not target.exists()
+    assert not (tmp_path / "ds.zip.part").exists()
+
+
+def test_tmdb_read_timeout_is_retried_not_fatal(monkeypatch):
+    import urllib.request
+
+    from streamlit_recommenders.data.prepare import tmdb
+
+    monkeypatch.setattr(tmdb.time, "sleep", lambda _s: None)
+
+    def fake_urlopen(request, **kw):
+        return _FakeResponse([b"{}"], fail_after=0)
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    assert tmdb.TmdbClient(api_key="k").movie(1, attempts=2) == {}
+
+
+def test_tmdb_rejected_credentials_stop_enrichment(monkeypatch):
+    import io
+    import urllib.error
+    import urllib.request
+
+    import pytest
+
+    from streamlit_recommenders.data.prepare import tmdb
+
+    def fake_urlopen(request, **kw):
+        raise urllib.error.HTTPError("u", 401, "Unauthorized", {}, io.BytesIO())
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    with pytest.raises(SystemExit, match="401"):
+        tmdb.TmdbClient(api_key="bad").movie(1)
+
+
+def test_cli_reads_dotenv_from_working_directory(tmp_path, monkeypatch):
+    # Installed from PyPI the package lives in site-packages, so the .env must
+    # be looked up from where the user runs the command, not next to the code.
+    import sys
+
+    import pytest
+
+    from streamlit_recommenders.data.prepare import __main__ as cli
+
+    (tmp_path / ".env").write_text("TMDB_API_KEY=from_dotenv\n")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("TMDB_API_KEY", "placeholder")
+    monkeypatch.delenv("TMDB_API_KEY")  # restored to the original on teardown
+    monkeypatch.setattr(sys, "argv", ["prepare", "--dataset", "unknown"])
+
+    with pytest.raises(ValueError):
+        cli.main()
+
+    import os
+
+    assert os.environ.get("TMDB_API_KEY") == "from_dotenv"

@@ -1,39 +1,30 @@
 # Inspection views
 
-Beyond a single ranked list, a demo can show layouts, metrics, and plots. This page draws the line
-between what the framework renders automatically and what you add.
+## What is automatic and what you add
 
-## Who provides what
-
-| Layer | Who supplies it | Examples |
-|-------|-----------------|----------|
-| **Automatic (framework)** | the library | session profile, caching, model adapter, side-by-side comparison, seen-filtering, layouts, sidebar widgets from `params` |
-| **Recommender adapter** | you (the model author) | `get_recommendations()` / `scores()` — how a profile becomes a ranking |
-| **Optional content** | you (the demo author) | metric tables, score distributions, overlap heatmaps, markdown — via `intro()` / `body()` |
-
-!!! important "Analytical views are helpers you call, not automatic output"
-    `sr.evaluate`, `sr.plot_*`, `sr.recommendation_overlap_matrix`, `sr.table`, and `sr.markdown`
-    are functions the library **provides**, but they render only where you call them in `body()`.
-    The framework does not compute or show them on its own. All built-in charts are interactive
-    **Plotly** figures (`st.plotly_chart`), and any Streamlit-compatible chart can be dropped into
-    `body()` too.
+`sr.run` always renders the user picker, profile strips, recommendation sections (one per model),
+sidebar controls from `params`, and the seen/fallback labels. Everything else is a helper you call
+inside `intro()` (above the app) or `body()` (below it): metric tables, plots, Markdown. The
+framework never computes metrics or draws charts on its own. Built-in charts are interactive Plotly
+figures; any other Streamlit element works in `body()` too.
 
 ## Layouts
 
-| Layout | Display |
-|--------|---------|
-| `rows` | One horizontal row of clickable poster cards with side scroll; drives side-by-side comparison |
-| `grid` | Catalog-style clickable poster grid (`n_rows` × `n_cols`) for single-model browsing |
-| `cards` | Swipe deck: one card at a time with Like / Dislike / Skip; refreshes after `swipes_per_refresh` swipes |
+| Layout | Shows |
+|--------|-------|
+| `rows` | one horizontally scrolling row of poster cards per model; used for comparison |
+| `grid` | `n_rows` × `n_cols` posters for browsing one model |
+| `cards` | one card at a time with Like / Dislike / Skip, refreshed every `swipes_per_refresh` swipes |
 
-Compare mode (`get_recommendations={...}`) always uses `rows`; the `cards` deck is single-model.
+Passing several models (`get_recommendations={...}`) always uses `rows`; `cards` is single-model.
 
 ## Metrics
 
-Ranking metrics over held-out interactions — hit rate, recall, NDCG, MRR, and catalog coverage:
+Hit rate, recall, NDCG, MRR and catalog coverage over held-out interactions:
 
 ```python
-metrics = sr.evaluate({"Ours": recs_by_user}, test_interactions=test, k=10, all_item_ids=items.item_id)
+recs = {"EASE": {user: ease.get_recommendations(user, 10) for user in test.user_id.unique()}}
+metrics = sr.evaluate(recs, test_interactions=test, k=10, all_item_ids=items.item_id)
 sr.table(metrics)
 sr.plot_metric_comparison(metrics)
 ```
@@ -41,11 +32,10 @@ sr.plot_metric_comparison(metrics)
 ## Plots
 
 ```python
-sr.dataset_info(items, train)                    # counts, density, distribution tabs
-overlap = sr.recommendation_overlap_matrix({"ItemKNN": [1, 2, 3], "EASE": [2, 3, 4]})
-sr.plot_overlap_heatmap(overlap)                 # pairwise Jaccard agreement
-sr.plot_score_distribution(scores)               # score spread for a model
+sr.dataset_info(items, train)  # table sizes; genre, activity and rating distributions
+sr.plot_overlap_heatmap(sr.recommendation_overlap_matrix(sr.displayed_items()))  # Jaccard overlap of what is on screen
+sr.plot_score_distribution(ease.score_frame(sr.current_user()))  # needs a "score" column
 ```
 
-These connect the aggregate numbers reported in a paper to the concrete recommendations a reader
-can see. Put them in `body()` so they render beneath the recommendation interface.
+`sr.displayed_items()` returns exactly the lists on screen, so plots in `body()` match what the
+viewer sees.

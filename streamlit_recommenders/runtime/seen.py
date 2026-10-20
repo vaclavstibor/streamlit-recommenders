@@ -14,7 +14,7 @@ from typing import Any
 import pandas as pd
 
 SESSION_USER_ID = "__session__"
-SESSION_USER_LABEL = "Try yourself (session)"
+SESSION_USER_LABEL = "Try it yourself"
 
 
 def is_session_user(user_id: str | int) -> bool:
@@ -70,6 +70,18 @@ def selection_item_ids(selections: list[dict] | None) -> list:
     if not selections:
         return []
     return [entry["item_id"] for entry in selections]
+
+
+def disliked_item_ids(selections: list[dict] | None) -> list:
+    """Extract the ids of swipe dislikes (``sentiment == "dislike"``) from selection entries.
+
+    Args:
+        selections: Selection entries, or ``None``.
+
+    Returns:
+        The disliked item ids in the order they were disliked.
+    """
+    return [entry["item_id"] for entry in selections or [] if entry.get("sentiment") == "dislike"]
 
 
 def call_with_session_context(

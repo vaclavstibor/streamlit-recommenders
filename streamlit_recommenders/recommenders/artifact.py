@@ -46,7 +46,9 @@ class ArtifactRecommender(BaseRecommender):
 
     Loads a ``.npz`` artifact and serves recommendations either from an
     item-item weight matrix (item-based CF or sequential CF) or from a
-    popularity fallback when the user/session profile is empty.
+    popularity fallback when the user/session profile is empty. Swipe
+    dislikes subtract the disliked items' weight rows, demoting items that
+    resemble (or, for sequential CF, usually follow) what was rejected.
 
     Attributes:
         name: Artifact file stem, used as a display name.
@@ -85,6 +87,8 @@ class ArtifactRecommender(BaseRecommender):
         user_id: str | int,
         session_items: list | None = None,
         history_window: int | str | None = None,
+        disliked_items: list | None = None,
+        dislike_weight: float = 1.0,
         **params,
     ) -> np.ndarray:
         """Score every item for ``user_id`` using the loaded artifact.
@@ -92,12 +96,18 @@ class ArtifactRecommender(BaseRecommender):
         For sequential models, scores come from the weight row of the most
         recent (anchor) item; otherwise from a user profile vector multiplied
         by the weight matrix. Falls back to popularity when no signal exists.
+        Dislikes only adjust a score the model produced: on their own they
+        are no profile, so the popularity fallback stays untouched.
 
         Args:
             user_id: Id of the user to score items for.
             session_items: Items selected during the current session.
             history_window: Number of most recent history items to keep, or
                 ``"All"``/``None`` to use the full history.
+            disliked_items: Items disliked during the current session; each
+                subtracts ``dislike_weight`` times its weight row.
+            dislike_weight: Strength of one dislike relative to one positive
+                item (``0`` ignores dislikes).
             **params: Additional parameters (ignored).
 
         Returns:
@@ -109,13 +119,13 @@ class ArtifactRecommender(BaseRecommender):
             if anchor in self.item_index:
                 scores = self.weights[self.item_index[anchor]].copy()
                 if scores.any():
-                    return scores
+                    return self._penalize(scores, disliked_items, dislike_weight)
             return self.popularity.copy()
 
         vector = self._user_vector(user_id, session_items, history_window=history_window)
         if not vector.any():
             return self.popularity.copy()
-        return vector @ self.weights
+        return self._penalize(vector @ self.weights, disliked_items, dislike_weight)
 
     def fallback_reason(
         self,
@@ -175,6 +185,13 @@ class ArtifactRecommender(BaseRecommender):
         if items is not None and {"item_id", "title"}.issubset(items.columns):
             frame = frame.merge(items[["item_id", "title"]], on="item_id", how="left")
         return frame.sort_values("score", ascending=False)
+
+    def _penalize(self, scores: np.ndarray, disliked_items: list | None, weight: float) -> np.ndarray:
+        """Subtract ``weight`` times the weight rows of the disliked items."""
+        rows = [self.item_index[item_id] for item_id in disliked_items or [] if item_id in self.item_index]
+        if not rows or not weight:
+            return scores
+        return scores - weight * self.weights[rows].sum(axis=0)
 
     def _user_vector(
         self,
